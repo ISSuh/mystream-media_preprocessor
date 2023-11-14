@@ -65,14 +65,15 @@ func (f *MediaFrame) clone() *MediaFrame {
 }
 
 type MediaProducer struct {
-	name    string
-	session *MediaSession
-	mtx     sync.Mutex
-	quit    chan struct{}
-	die     sync.Once
-	muxer   *mpeg2.TSMuxer
-	vpid    uint16
-	apid    uint16
+	name      string
+	session   *MediaSession
+	mtx       sync.Mutex
+	consumers []*MediaSession
+	quit      chan struct{}
+	die       sync.Once
+	muxer     *mpeg2.TSMuxer
+	vpid      uint16
+	apid      uint16
 
 	tsfilename string
 	tsfile     *os.File
@@ -80,10 +81,11 @@ type MediaProducer struct {
 
 func newMediaProducer(name string, sess *MediaSession) *MediaProducer {
 	mediaProducer := &MediaProducer{
-		name:    name,
-		session: sess,
-		quit:    make(chan struct{}),
-		muxer:   mpeg2.NewTSMuxer(),
+		name:      name,
+		session:   sess,
+		consumers: make([]*MediaSession, 0, 10),
+		quit:      make(chan struct{}),
+		muxer:     mpeg2.NewTSMuxer(),
 	}
 
 	mediaProducer.muxer.OnPacket = func(pkg []byte) {
@@ -117,8 +119,11 @@ func newMediaProducer(name string, sess *MediaSession) *MediaProducer {
 	return mediaProducer
 }
 
+func (producer *MediaProducer) start() {
+	go producer.dispatch()
+}
+
 func (producer *MediaProducer) stop() {
-	fmt.Println("MediaProducer.stop")
 	producer.die.Do(func() {
 		close(producer.quit)
 		center.unRegister(producer.name)
@@ -126,8 +131,6 @@ func (producer *MediaProducer) stop() {
 }
 
 func (producer *MediaProducer) dispatch() {
-	fmt.Println("MediaProducer.dispatch")
-
 	defer func() {
 		fmt.Println("quit dispatch")
 		producer.stop()
@@ -156,16 +159,16 @@ func (producer *MediaProducer) dispatch() {
 				})
 			}
 
-			// producer.mtx.Lock()
-			// tmp := make([]*MediaSession, len(producer.consumers))
-			// copy(tmp, producer.consumers)
-			// producer.mtx.Unlock()
-			// for _, c := range tmp {
-			// 	if c.ready() {
-			// 		tmp := frame.clone()
-			// 		c.play(tmp)
-			// 	}
-			// }
+			producer.mtx.Lock()
+			tmp := make([]*MediaSession, len(producer.consumers))
+			copy(tmp, producer.consumers)
+			producer.mtx.Unlock()
+			for _, c := range tmp {
+				if c.ready() {
+					tmp := frame.clone()
+					c.play(tmp)
+				}
+			}
 		case <-producer.session.quit:
 			return
 		case <-producer.quit:
@@ -174,13 +177,32 @@ func (producer *MediaProducer) dispatch() {
 	}
 }
 
+func (producer *MediaProducer) addConsumer(consumer *MediaSession) {
+	producer.mtx.Lock()
+	defer producer.mtx.Unlock()
+	producer.consumers = append(producer.consumers, consumer)
+}
+
+func (producer *MediaProducer) removeConsumer(id string) {
+	producer.mtx.Lock()
+	defer producer.mtx.Unlock()
+	for i, consume := range producer.consumers {
+		if consume.id == id {
+			producer.consumers = append(producer.consumers[i:], producer.consumers[i+1:]...)
+		}
+	}
+}
+
 type MediaSession struct {
 	handle    *rtmp.RtmpServerHandle
 	conn      net.Conn
+	lists     []*MediaFrame
 	mtx       sync.Mutex
 	id        string
+	isReady   bool
 	frameCome chan struct{}
 	quit      chan struct{}
+	source    *MediaProducer
 	die       sync.Once
 	C         chan *MediaFrame
 }
@@ -201,14 +223,17 @@ func (sess *MediaSession) init() {
 
 	sess.handle.OnPlay(func(app, streamName string, start, duration float64, reset bool) rtmp.StatusCode {
 		fmt.Println("OnPlay - ", app, " / ", streamName)
-		return rtmp.NETSTREAM_CONNECT_REJECTED
+
+		if source := center.find(streamName); source == nil {
+			return rtmp.NETSTREAM_PLAY_NOTFOUND
+		}
+		return rtmp.NETSTREAM_PLAY_START
 	})
 
 	sess.handle.OnPublish(func(app, streamName string) rtmp.StatusCode {
 		fmt.Println("OnPublish - ", streamName)
 
 		return rtmp.NETSTREAM_PUBLISH_START
-		// return rtmp.NETCONNECT_CONNECT_REJECTED
 	})
 
 	sess.handle.SetOutput(func(b []byte) error {
@@ -218,26 +243,33 @@ func (sess *MediaSession) init() {
 
 	sess.handle.OnStateChange(func(newState rtmp.RtmpState) {
 		if newState == rtmp.STATE_RTMP_PLAY_START {
-			fmt.Println("not support state = STATE_RTMP_PLAY_START ")
+			fmt.Println("play start")
+			name := sess.handle.GetStreamName()
+			source := center.find(name)
+			sess.source = source
+			if source != nil {
+				source.addConsumer(sess)
+				fmt.Println("ready to play")
+				sess.isReady = true
+				go sess.sendToClient()
+			}
 		} else if newState == rtmp.STATE_RTMP_PUBLISH_START {
 			fmt.Println("publish start")
-
+			sess.handle.OnFrame(func(cid codec.CodecID, pts, dts uint32, frame []byte) {
+				f := &MediaFrame{
+					cid:   cid,
+					frame: frame, //make([]byte, len(frame)),
+					pts:   pts,
+					dts:   dts,
+				}
+				//copy(f.frame, frame)
+				sess.C <- f
+			})
 			name := sess.handle.GetStreamName()
 			p := newMediaProducer(name, sess)
 			go p.dispatch()
 			center.register(name, p)
 		}
-	})
-
-	sess.handle.OnFrame(func(cid codec.CodecID, pts, dts uint32, frame []byte) {
-		f := &MediaFrame{
-			cid:   cid,
-			frame: frame, //make([]byte, len(frame)),
-			pts:   pts,
-			dts:   dts,
-		}
-		//copy(f.frame, frame)
-		sess.C <- f
 	})
 }
 
@@ -265,8 +297,63 @@ func (sess *MediaSession) stop() {
 
 	sess.die.Do(func() {
 		close(sess.quit)
+		if sess.source != nil {
+			sess.source.removeConsumer(sess.id)
+			sess.source = nil
+		}
 		sess.conn.Close()
 	})
+}
+
+func (sess *MediaSession) ready() bool {
+	fmt.Println("MediaSession.ready")
+
+	return sess.isReady
+}
+
+func (sess *MediaSession) play(frame *MediaFrame) {
+	fmt.Println("MediaSession.play")
+
+	sess.mtx.Lock()
+	sess.lists = append(sess.lists, frame)
+	sess.mtx.Unlock()
+	select {
+	case sess.frameCome <- struct{}{}:
+	default:
+	}
+}
+
+func (sess *MediaSession) sendToClient() {
+	fmt.Println("MediaSession.sendToClient")
+
+	firstVideo := true
+	for {
+		select {
+		case <-sess.frameCome:
+			sess.mtx.Lock()
+			frames := sess.lists
+			sess.lists = nil
+			sess.mtx.Unlock()
+			for _, frame := range frames {
+				if firstVideo { //wait for I frame
+					if frame.cid == codec.CODECID_VIDEO_H264 && codec.IsH264IDRFrame(frame.frame) {
+						firstVideo = false
+					} else if frame.cid == codec.CODECID_VIDEO_H265 && codec.IsH265IDRFrame(frame.frame) {
+						firstVideo = false
+					} else {
+						continue
+					}
+				}
+				err := sess.handle.WriteFrame(frame.cid, frame.frame, frame.pts, frame.dts)
+				if err != nil {
+					sess.stop()
+					return
+				}
+			}
+		case <-sess.quit:
+			return
+		}
+	}
 }
 
 func startRtmpServer() {
