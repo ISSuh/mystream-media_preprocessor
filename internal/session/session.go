@@ -32,6 +32,7 @@ import (
 
 	"github.com/ISSuh/my-stream-media/internal/media"
 	"github.com/ISSuh/my-stream-media/internal/protocol"
+	"github.com/ISSuh/my-stream-media/internal/segment"
 	"github.com/ISSuh/my-stream-media/internal/transport"
 )
 
@@ -44,6 +45,8 @@ type Session struct {
 
 	stopSignal  chan struct{}
 	stopRunning sync.Once
+
+	streamSegmgment *segment.StreamSegments
 }
 
 func NewSession(sessionId int, sessionHandler SessionHandler, transporter transport.Transport) *Session {
@@ -57,6 +60,10 @@ func NewSession(sessionId int, sessionHandler SessionHandler, transporter transp
 
 	session.context.RegistHandler(session, transporter)
 	return session
+}
+
+func (session *Session) registStreamSegment(streamSegmgment *segment.StreamSegments) {
+	session.streamSegmgment = streamSegmgment
 }
 
 func (session *Session) run() {

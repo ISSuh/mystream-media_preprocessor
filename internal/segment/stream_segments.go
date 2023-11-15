@@ -27,30 +27,41 @@ package segment
 import (
 	"errors"
 	"os"
+	"strconv"
 	"time"
+
+	"github.com/ISSuh/my-stream-media/internal/media"
 )
 
 type StreamSegments struct {
-	basePath   string
-	begineTime string
-	segment    []*Segment
+	streamBasePath string
+
+	segmentRange int
+
+	currentSegment *Segment
+	segments       []*Segment
+	lastTimestamp  media.Timestamp
 
 	idCounter int
 }
 
-func NewStreamSegments(basePath string) *StreamSegments {
+func NewStreamSegments(basePath string, segmentRange int) *StreamSegments {
 	t := time.Now()
+	streamBasePath := basePath + "/" + t.Format("20060102150405")
+
 	return &StreamSegments{
-		basePath:   basePath,
-		begineTime: t.Format("20060102150405"),
-		idCounter:  0,
+		streamBasePath: streamBasePath,
+		segmentRange:   segmentRange,
+		currentSegment: nil,
+		segments:       make([]*Segment, 0),
+		lastTimestamp:  media.Timestamp{Pts: 0, Dts: 0},
+		idCounter:      0,
 	}
 }
 
 func (s *StreamSegments) Open() error {
-	currentStreamSegmentBasePath := s.basePath + "/" + s.begineTime
-	if _, err := os.Stat(currentStreamSegmentBasePath); errors.Is(err, os.ErrNotExist) {
-		err := os.MkdirAll(currentStreamSegmentBasePath, os.ModePerm)
+	if _, err := os.Stat(s.streamBasePath); errors.Is(err, os.ErrNotExist) {
+		err := os.MkdirAll(s.streamBasePath, os.ModePerm)
 		if err != nil {
 			return err
 		}
@@ -59,11 +70,47 @@ func (s *StreamSegments) Open() error {
 }
 
 func (s *StreamSegments) Close() {
+	s.currentSegment.close()
 }
 
-func (s *StreamSegments) Write(data []byte) error {
+func (s *StreamSegments) Write(data []byte, timestamp media.Timestamp) error {
+	if s.needNewSegment(timestamp) {
+		segment, err := s.createSegment()
+		if err != nil {
+			return nil
+		}
 
+		s.currentSegment.close()
+		s.segments = append(s.segments, s.currentSegment)
+
+		s.currentSegment = segment
+	}
+
+	s.lastTimestamp = timestamp
+	return s.currentSegment.write(data, timestamp)
 }
 
-func (s *StreamSegments) createSegment() {
+func (s *StreamSegments) needNewSegment(timestamp media.Timestamp) bool {
+	if s.currentSegment == nil {
+		return true
+	}
+
+	if (timestamp.Pts - s.currentSegment.beginTime.Pts) > uint64(s.segmentRange) {
+		return true
+	}
+
+	return false
+}
+
+func (s *StreamSegments) createSegment() (*Segment, error) {
+	now := time.Now().Format("20060102150405")
+	segmentFileName := s.streamBasePath + strconv.Itoa(s.idCounter) + "_" + now + ".ts"
+	segment := NewSegment(s.idCounter, segmentFileName)
+
+	if err := segment.open(); err != nil {
+		return nil, err
+	}
+
+	s.idCounter++
+	return segment, nil
 }

@@ -39,11 +39,11 @@ type ServerConfigure struct {
 
 type MediaConfigure struct {
 	Reserve string `yaml:"reserve"`
-	TsRange int    `yaml:"tsRange"`
 }
 
 type SegmentConfigure struct {
 	BasePath string `yaml:"basePath"`
+	TsRange  int    `yaml:"tsRange"`
 }
 
 type Configure struct {

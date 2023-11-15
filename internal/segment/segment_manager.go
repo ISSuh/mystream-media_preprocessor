@@ -45,7 +45,7 @@ func (sm *SegmentManager) OpenStreamSegments(userId int) (*StreamSegments, error
 	userIdStr := strconv.Itoa(userId)
 	streamSegmentBasePath := sm.configure.BasePath + "/" + userIdStr
 
-	streamSegments := NewStreamSegments(streamSegmentBasePath)
+	streamSegments := NewStreamSegments(streamSegmentBasePath, sm.configure.TsRange)
 	if err := streamSegments.Open(); err != nil {
 		return nil, err
 	}

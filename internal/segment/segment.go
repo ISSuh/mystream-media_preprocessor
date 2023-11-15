@@ -34,6 +34,7 @@ type Segment struct {
 	id       int
 	filePath string
 	file     *os.File
+	isOpend  bool
 
 	beginTime media.Timestamp
 	endTime   media.Timestamp
@@ -43,23 +44,45 @@ func NewSegment(id int, filePath string) *Segment {
 	return &Segment{
 		id:        id,
 		filePath:  filePath,
-		file:      &os.File{},
+		file:      nil,
+		isOpend:   false,
 		beginTime: media.Timestamp{Pts: 0, Dts: 0},
 		endTime:   media.Timestamp{Pts: 0, Dts: 0},
 	}
 }
 
-func (s *Segment) Write(data []byte) error {
-	if _, err := s.file.Write(data); err != nil {
+func (s *Segment) open() error {
+	file, err := os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
 		return err
 	}
+
+	s.file = file
+	s.isOpend = true
 	return nil
 }
 
-func (s *Segment) Close(timestamp media.Timestamp) {
-	s.endTime = timestamp
-	s.file.Sync()
-	s.file.Close()
+func (s *Segment) write(data []byte, timestamp media.Timestamp) error {
+	if _, err := s.file.Write(data); err != nil {
+		return err
+	}
+
+	if s.beginTime.IsEmpty() {
+		s.beginTime = timestamp
+	} else {
+		s.endTime = timestamp
+	}
+
+	return nil
+}
+
+func (s *Segment) close() {
+	if s.isOpend {
+		s.file.Sync()
+		s.file.Close()
+
+		s.isOpend = false
+	}
 }
 
 func (s *Segment) BeginTime() media.Timestamp {

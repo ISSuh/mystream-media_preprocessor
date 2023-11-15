@@ -6,8 +6,8 @@ server:
 media:
   reserve: reserve
 
-  # seconde
-  tsRange: 2
-
 segment:
   basePath: ./temp
+
+  # seconde
+  tsRange: 2

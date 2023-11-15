@@ -31,6 +31,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/ISSuh/my-stream-media/internal/configure"
+	"github.com/ISSuh/my-stream-media/internal/segment"
 	"github.com/ISSuh/my-stream-media/internal/transport"
 )
 
@@ -38,6 +39,8 @@ type SessionManager struct {
 	configure *configure.Configure
 	sessions  map[int]*Session
 	rand      *rand.Rand
+
+	segmentManager *segment.SegmentManager
 }
 
 func NewSessionManager(configure *configure.Configure) *SessionManager {
@@ -45,9 +48,10 @@ func NewSessionManager(configure *configure.Configure) *SessionManager {
 	rand := rand.New(seed)
 
 	return &SessionManager{
-		configure: configure,
-		sessions:  make(map[int]*Session),
-		rand:      rand,
+		configure:      configure,
+		sessions:       make(map[int]*Session),
+		rand:           rand,
+		segmentManager: segment.NewSessionManager(configure.Segment),
 	}
 }
 
@@ -78,6 +82,13 @@ func (sm *SessionManager) TerminateAllSession() {
 
 func (sm *SessionManager) checkValidStream(sessionId int, appName, streamPath string) error {
 	log.Info("[SessionManager][checkValidStream][", sessionId, "]")
+
+	streamSegments, err := sm.segmentManager.OpenStreamSegments(sessionId)
+	if err != nil {
+		return err
+	}
+
+	sm.sessions[sessionId].registStreamSegment(streamSegments)
 	return nil
 }
 
@@ -88,11 +99,13 @@ func (sm *SessionManager) streamStart(sessionId int) error {
 
 func (sm *SessionManager) streamEnd(sessionId int) {
 	log.Info("[SessionManager][streamEnd][", sessionId, "]")
+	sm.segmentManager.CloseStreamSegments(sessionId)
 	sm.stopSession(sessionId)
 }
 
 func (sm *SessionManager) streamError(sessionId int) {
 	log.Info("[SessionManager][streamError][", sessionId, "]")
+	sm.segmentManager.CloseStreamSegments(sessionId)
 	sm.stopSession(sessionId)
 }
 
