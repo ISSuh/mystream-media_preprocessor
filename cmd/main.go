@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/yapingcat/gomedia/go-codec"
 	"github.com/yapingcat/gomedia/go-mpeg2"
@@ -97,7 +98,7 @@ func newMediaProducer(name string, sess *MediaSession) *MediaProducer {
 
 		// os.Stdin.Read(make([]byte, 1))
 		mediaProducer.tsfile.Sync()
-		fmt.Println("muxint file writ eend")
+		// fmt.Println("muxint file writ eend")
 	}
 
 	mediaProducer.vpid = mediaProducer.muxer.AddStream(mpeg2.TS_STREAM_H264)
@@ -152,9 +153,11 @@ func (producer *MediaProducer) dispatch() {
 						fmt.Println(frame.dts)
 					}
 					// fmt.Println(producer.muxer.Write(producer.vpid, nalu, uint64(frame.pts), uint64(frame.dts)))
-					fmt.Println("muxint begin")
+					fmt.Println("[TEST]["+time.Now().String()+"] - ", frame.pts)
+
+					// fmt.Println("muxint begin")
 					producer.muxer.Write(producer.vpid, nalu, uint64(frame.pts), uint64(frame.dts))
-					fmt.Println("muxint end")
+					// fmt.Println("muxint end")
 					return true
 				})
 			}

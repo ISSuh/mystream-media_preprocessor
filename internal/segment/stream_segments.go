@@ -42,6 +42,7 @@ type StreamSegments struct {
 	currentSegment *Segment
 	segments       []*Segment
 	lastTimestamp  media.Timestamp
+	streamTime     float64
 
 	idCounter int
 }
@@ -56,6 +57,7 @@ func NewStreamSegments(basePath string, segmentRange int) *StreamSegments {
 		currentSegment: nil,
 		segments:       make([]*Segment, 0),
 		lastTimestamp:  media.Timestamp{Pts: 0, Dts: 0},
+		streamTime:     0,
 		idCounter:      0,
 	}
 }
@@ -99,12 +101,14 @@ func (s *StreamSegments) needNewSegment(timestamp media.Timestamp) bool {
 		return true
 	}
 
-	// if (timestamp.Pts - s.currentSegment.beginTime.Pts) > uint64(2*1000) {
-	// 	fmt.Println("[TEST][StreamSegments] needNewSegment - ",
-	// 		timestamp.Pts, " / ", s.currentSegment.beginTime.Pts, " // ",
-	// 		(timestamp.Pts - s.currentSegment.beginTime.Pts))
-	// 	return true
-	// }
+	s.streamTime += float64(timestamp.Pts) * 0.014
+	fmt.Println("[TEST][StreamSegments]["+time.Now().String()+"]needNewSegment - ", timestamp.Pts, " / ", s.streamTime)
+	if (timestamp.Pts - s.currentSegment.beginTime.Pts) > uint64(2*1000) {
+		fmt.Println("[TEST][StreamSegments] needNewSegment - ",
+			timestamp.Pts, " / ", s.currentSegment.beginTime.Pts, " // ",
+			(timestamp.Pts - s.currentSegment.beginTime.Pts))
+		return true
+	}
 
 	return false
 }
