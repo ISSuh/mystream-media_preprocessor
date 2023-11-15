@@ -27,6 +27,8 @@ package segment
 import (
 	"strconv"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/ISSuh/my-stream-media/internal/configure"
 )
 
@@ -38,10 +40,12 @@ type SegmentManager struct {
 func NewSessionManager(configure configure.SegmentConfigure) *SegmentManager {
 	return &SegmentManager{
 		configure: configure,
+		streams:   make(map[int]*StreamSegments, 0),
 	}
 }
 
 func (sm *SegmentManager) OpenStreamSegments(userId int) (*StreamSegments, error) {
+	log.Info("[SegmentManager][OpenStreamSegments][", userId, "]")
 	userIdStr := strconv.Itoa(userId)
 	streamSegmentBasePath := sm.configure.BasePath + "/" + userIdStr
 
@@ -55,6 +59,8 @@ func (sm *SegmentManager) OpenStreamSegments(userId int) (*StreamSegments, error
 }
 
 func (sm *SegmentManager) CloseStreamSegments(userId int) {
+	log.Info("[SegmentManager][CloseStreamSegments][", userId, "]")
+
 	streamSegments := sm.streams[userId]
 	streamSegments.Close()
 

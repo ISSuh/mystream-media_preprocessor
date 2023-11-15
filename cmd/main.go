@@ -152,6 +152,7 @@ func (producer *MediaProducer) dispatch() {
 						fmt.Println(frame.dts)
 					}
 					// fmt.Println(producer.muxer.Write(producer.vpid, nalu, uint64(frame.pts), uint64(frame.dts)))
+					fmt.Println("muxint begin")
 					producer.muxer.Write(producer.vpid, nalu, uint64(frame.pts), uint64(frame.dts))
 					fmt.Println("muxint end")
 					return true

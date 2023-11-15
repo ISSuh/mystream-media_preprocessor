@@ -25,6 +25,7 @@ SOFTWARE.
 package segment
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/ISSuh/my-stream-media/internal/media"
@@ -52,6 +53,8 @@ func NewSegment(id int, filePath string) *Segment {
 }
 
 func (s *Segment) open() error {
+	fmt.Println("[TEST][Segment] open")
+
 	file, err := os.OpenFile(s.filePath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return err

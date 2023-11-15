@@ -18,6 +18,10 @@ func (frame *MediaFrame) Data() []byte {
 	return frame.data
 }
 
+func (frame *MediaFrame) Timestamp() Timestamp {
+	return frame.timestamp
+}
+
 func (frame *MediaFrame) Dts() uint64 {
 	return frame.timestamp.Dts
 }

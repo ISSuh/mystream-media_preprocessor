@@ -46,21 +46,24 @@ func NewTSMuxer() *TsMuxer {
 	}
 
 	tsMuxer.videoStreamId = tsMuxer.context.AddStream(mpeg2.TS_STREAM_H264)
-	tsMuxer.context.OnPacket = tsMuxer.OnMuxing
-
 	return tsMuxer
 }
 
-func (m *TsMuxer) WriteVideo(frame *VideoFrame) error {
+func (m *TsMuxer) MuxingVideo(frame *VideoFrame) ([]byte, error) {
 	if (frame.mediaType != MEDIA_VIDEO) || (frame.codec != CODEC_VIDEO_H264) {
-		return errors.New("invalid frame")
+		return nil, errors.New("invalid frame")
+	}
+
+	buffer := make([]byte, 0)
+	m.context.OnPacket = func(data []byte) {
+		buffer = append(buffer, data...)
 	}
 
 	m.videoCodec.ProcessingFrame(frame)
-	return m.context.Write(
-		m.videoStreamId, frame.Data(), frame.Pts(), frame.Dts())
-}
+	err := m.context.Write(m.videoStreamId, frame.Data(), frame.Pts(), frame.Dts())
+	if err != nil {
+		return nil, err
+	}
 
-func (m *TsMuxer) OnMuxing(data []byte) {
-
+	return buffer, nil
 }

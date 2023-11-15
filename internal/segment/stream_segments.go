@@ -26,6 +26,7 @@ package segment
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -80,31 +81,39 @@ func (s *StreamSegments) Write(data []byte, timestamp media.Timestamp) error {
 			return nil
 		}
 
-		s.currentSegment.close()
-		s.segments = append(s.segments, s.currentSegment)
+		if s.currentSegment != nil {
+			s.currentSegment.close()
+			s.segments = append(s.segments, s.currentSegment)
+		}
 
 		s.currentSegment = segment
+		s.lastTimestamp = media.Timestamp{Pts: 0, Dts: 0}
 	}
 
-	s.lastTimestamp = timestamp
 	return s.currentSegment.write(data, timestamp)
 }
 
 func (s *StreamSegments) needNewSegment(timestamp media.Timestamp) bool {
 	if s.currentSegment == nil {
+		fmt.Println("[TEST][StreamSegments] needNewSegment")
 		return true
 	}
 
-	if (timestamp.Pts - s.currentSegment.beginTime.Pts) > uint64(s.segmentRange) {
-		return true
-	}
+	// if (timestamp.Pts - s.currentSegment.beginTime.Pts) > uint64(2*1000) {
+	// 	fmt.Println("[TEST][StreamSegments] needNewSegment - ",
+	// 		timestamp.Pts, " / ", s.currentSegment.beginTime.Pts, " // ",
+	// 		(timestamp.Pts - s.currentSegment.beginTime.Pts))
+	// 	return true
+	// }
 
 	return false
 }
 
 func (s *StreamSegments) createSegment() (*Segment, error) {
+	fmt.Println("[TEST][StreamSegments] createSegment")
+
 	now := time.Now().Format("20060102150405")
-	segmentFileName := s.streamBasePath + strconv.Itoa(s.idCounter) + "_" + now + ".ts"
+	segmentFileName := s.streamBasePath + "/" + strconv.Itoa(s.idCounter) + "_" + now + ".ts"
 	segment := NewSegment(s.idCounter, segmentFileName)
 
 	if err := segment.open(); err != nil {
