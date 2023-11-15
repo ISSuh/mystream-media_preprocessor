@@ -22,52 +22,34 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package service
+package transport
 
 import (
 	"net"
-
-	log "github.com/sirupsen/logrus"
-
-	"github.com/ISSuh/my-stream-media/internal/configure"
-	"github.com/ISSuh/my-stream-media/internal/session"
-	"github.com/ISSuh/my-stream-media/internal/transport"
 )
 
-const (
-	NETWORK_TCP_V4     = "tcp4"
-	NETWORK_DEFAULT_IP = "0.0.0.0"
-)
-
-type Service struct {
-	configure      *configure.Configure
-	sessionManager *session.SessionManager
+type SocketTransport struct {
+	conn       net.Conn
+	packetSize int
 }
 
-func NewService(configure *configure.Configure) *Service {
-	return &Service{
-		configure:      configure,
-		sessionManager: session.NewSessionManager(),
+func NewSocketTransport(conn net.Conn, packetSize int) Transport {
+	return &SocketTransport{
+		conn:       conn,
+		packetSize: packetSize,
 	}
 }
 
-func (service *Service) Run() error {
-	log.Info("[Service.Run] service running")
-	address := NETWORK_DEFAULT_IP + ":" + service.configure.Server.RtmpPort
-	listen, err := net.Listen(NETWORK_TCP_V4, address)
+func (t *SocketTransport) Read() ([]byte, error) {
+	data := make([]byte, t.packetSize)
+	_, err := t.conn.Read(data)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	return data, nil
+}
 
-	for {
-		connection, err := listen.Accept()
-		if err != nil {
-			log.Warn("[Service.Run] connection error. ", err)
-			continue
-		}
-
-		socketTransport := transport.NewSocketTransport(connection, service.configure.Server.PacketSize)
-		session := service.sessionManager.CreateNewSession(socketTransport)
-		go session.run()
-	}
+func (t *SocketTransport) Write(data []byte) error {
+	_, err := t.conn.Write(data)
+	return err
 }

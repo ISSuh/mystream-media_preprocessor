@@ -1,0 +1,7 @@
+server:
+  rtmpPort: 1935
+  broadcastServerAddress: localhost:33669
+  packetSize: 65536
+
+media:
+  recordPath: ./temp

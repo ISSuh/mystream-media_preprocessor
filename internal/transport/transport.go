@@ -22,20 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package session
+package transport
 
-import "github.com/ISSuh/my-stream-media/internal/transport"
-
-type Session struct {
-	transporter transport.Transport
-}
-
-func NewSession(transporter transport.Transport) *Session {
-	return &Session{
-		transporter: transporter,
-	}
-}
-
-func (session *Session) Run() {
-
+type Transport interface {
+	Read() ([]byte, error)
+	Write(data []byte) error
 }

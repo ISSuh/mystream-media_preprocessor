@@ -22,20 +22,53 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package session
+package configure
 
-import "github.com/ISSuh/my-stream-media/internal/transport"
+import (
+	"errors"
+	"io/ioutil"
 
-type Session struct {
-	transporter transport.Transport
+	"gopkg.in/yaml.v2"
+)
+
+type ServerConfigure struct {
+	RtmpPort               string `yaml:"rtmpPort"`
+	BroadcastServerAddress string `yaml:"broadcastServerAddress"`
+	PacketSize             int    `yaml:"packetSize"`
 }
 
-func NewSession(transporter transport.Transport) *Session {
-	return &Session{
-		transporter: transporter,
+type MediaConfigure struct {
+	RecordPath string `yaml:"recordPath"`
+}
+
+type Configure struct {
+	Server ServerConfigure `yaml:"server"`
+	Media  MediaConfigure  `yaml:"media"`
+}
+
+func LoadConfigure(filePath string) (*Configure, error) {
+	if len(filePath) <= 0 {
+		return nil, errors.New("Invalid option file path")
 	}
+
+	var buffer []byte
+	var err error
+	if buffer, err = loadFile(filePath); err != nil {
+		return nil, err
+	}
+
+	configure := &Configure{}
+	if err = yaml.Unmarshal(buffer, configure); err != nil {
+		return nil, err
+	}
+
+	return configure, nil
 }
 
-func (session *Session) Run() {
-
+func loadFile(path string) ([]byte, error) {
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
