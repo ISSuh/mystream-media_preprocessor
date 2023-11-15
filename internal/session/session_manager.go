@@ -28,33 +28,85 @@ import (
 	"math/rand"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
+	"github.com/ISSuh/my-stream-media/internal/configure"
 	"github.com/ISSuh/my-stream-media/internal/transport"
 )
 
 type SessionManager struct {
-	sessions map[int]*Session
-	rand     *rand.Rand
+	configure *configure.Configure
+	sessions  map[int]*Session
+	rand      *rand.Rand
 }
 
-func NewSessionManager() *SessionManager {
+func NewSessionManager(configure *configure.Configure) *SessionManager {
 	seed := rand.NewSource(time.Now().UnixNano())
 	rand := rand.New(seed)
 
 	return &SessionManager{
-		sessions: make(map[int]*Session),
-		rand:     rand,
+		configure: configure,
+		sessions:  make(map[int]*Session),
+		rand:      rand,
 	}
 }
 
-func (sm *SessionManager) CreateNewSession(transporter transport.Transport) *Session {
+func (sm *SessionManager) CreateNewSession(transporter transport.Transport) int {
 	sessionId := sm.generateUniqSessionId()
-	session := NewSession(transporter)
+	session := NewSession(sessionId, sm, transporter)
 
 	sm.sessions[sessionId] = session
-	return session
+	return sessionId
 }
 
-func (sm *SessionManager) TerminateSession() {
+func (sm *SessionManager) RunSession(sessionId int) {
+	session, exist := sm.sessions[sessionId]
+	if !exist {
+		log.Error("[SessionManager][RunSession] invalid session id. ", sessionId)
+		return
+	}
+
+	go session.run()
+}
+
+func (sm *SessionManager) TerminateAllSession() {
+	for sessionId, session := range sm.sessions {
+		session.stop()
+		delete(sm.sessions, sessionId)
+	}
+}
+
+func (sm *SessionManager) checkValidStream(sessionId int, appName, streamPath string) error {
+	log.Info("[SessionManager][checkValidStream][", sessionId, "]")
+	return nil
+}
+
+func (sm *SessionManager) streamStart(sessionId int) error {
+	log.Info("[SessionManager][streamStart][", sessionId, "]")
+	return nil
+}
+
+func (sm *SessionManager) streamEnd(sessionId int) error {
+	log.Info("[SessionManager][streamEnd][", sessionId, "]")
+	sm.stopSession(sessionId)
+	return nil
+}
+
+func (sm *SessionManager) streamError(sessionId int) error {
+	log.Info("[SessionManager][streamError][", sessionId, "]")
+	sm.stopSession(sessionId)
+	return nil
+}
+
+func (sm *SessionManager) stopSession(sessionId int) {
+	session, exist := sm.sessions[sessionId]
+	if !exist {
+		log.Error("[SessionManager][stopSession] invalid session id. ", sessionId)
+		return
+	}
+
+	session.stop()
+	delete(sm.sessions, sessionId)
 }
 
 func (sm *SessionManager) generateUniqSessionId() int {

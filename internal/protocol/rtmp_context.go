@@ -40,15 +40,18 @@ type RtmpContext struct {
 	internalHandler *rtmp.RtmpServerHandle
 }
 
-func NewRtmpContext(handler RtmpHandler, transporter transport.Transport) *RtmpContext {
+func NewRtmpContext() *RtmpContext {
 	return &RtmpContext{
-		handler:         handler,
-		transporter:     transporter,
+		handler:         nil,
+		transporter:     nil,
 		internalHandler: rtmp.NewRtmpServerHandle(),
 	}
 }
 
-func (context *RtmpContext) RegistHandler() {
+func (context *RtmpContext) RegistHandler(handler RtmpHandler, transporter transport.Transport) {
+	context.handler = handler
+	context.transporter = transporter
+
 	context.internalHandler.SetOutput(
 		func(data []byte) error {
 			return context.transporter.Write(data)
@@ -56,13 +59,13 @@ func (context *RtmpContext) RegistHandler() {
 
 	context.internalHandler.OnPlay(
 		func(_, _ string, _, _ float64, _ bool) rtmp.StatusCode {
-			log.Warn("[RtmpContext.OnPlay] not support")
+			log.Warn("[RtmpContext][OnPlay] not support")
 			return rtmp.NETSTREAM_CONNECT_REJECTED
 		})
 
 	context.internalHandler.OnPublish(
-		func(app, streamName string) rtmp.StatusCode {
-			err := context.handler.OnPublish(app, streamName)
+		func(appName, streamPath string) rtmp.StatusCode {
+			err := context.handler.OnPrePare(appName, streamPath)
 			if err != nil {
 				return rtmp.NETCONNECT_CONNECT_REJECTED
 			}
@@ -73,7 +76,7 @@ func (context *RtmpContext) RegistHandler() {
 		func(newState rtmp.RtmpState) {
 			switch newState {
 			case rtmp.STATE_RTMP_PUBLISH_START:
-				context.handler.OnPlay()
+				context.handler.OnPublish()
 			case rtmp.STATE_RTMP_PUBLISH_FAILED:
 				context.handler.OnError()
 			}

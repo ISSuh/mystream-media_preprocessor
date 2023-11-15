@@ -24,18 +24,103 @@ SOFTWARE.
 
 package session
 
-import "github.com/ISSuh/my-stream-media/internal/transport"
+import (
+	"io"
+	"sync"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/ISSuh/my-stream-media/internal/media"
+	"github.com/ISSuh/my-stream-media/internal/protocol"
+	"github.com/ISSuh/my-stream-media/internal/transport"
+)
 
 type Session struct {
-	transporter transport.Transport
+	sessionId int
+
+	sessionHandler SessionHandler
+	transporter    transport.Transport
+	context        *protocol.RtmpContext
+
+	stopSignal  chan struct{}
+	stopRunning sync.Once
 }
 
-func NewSession(transporter transport.Transport) *Session {
-	return &Session{
-		transporter: transporter,
+func NewSession(sessionId int, sessionHandler SessionHandler, transporter transport.Transport) *Session {
+	session := &Session{
+		sessionId:      sessionId,
+		sessionHandler: sessionHandler,
+		transporter:    transporter,
+		context:        nil,
+		stopSignal:     make(chan struct{}),
+	}
+
+	session.context.RegistHandler(session, transporter)
+	return session
+}
+
+func (session *Session) run() {
+	for {
+		select {
+		case <-session.stopSignal:
+			break
+		default:
+			err := session.passStream()
+			if err != nil {
+				return
+			}
+		}
+
 	}
 }
 
-func (session *Session) Run() {
+func (session *Session) passStream() error {
+	data, err := session.transporter.Read()
+	if err != nil {
+		if err == io.EOF {
+			log.Error("[Session][run][", session.sessionId, "] end of stream")
+		} else {
+			log.Error("[Session][run][", session.sessionId, "] stream read error. ", err)
+		}
+		return err
+	}
+
+	err = session.context.InputStream(data)
+	if err != nil {
+		log.Error("[Session][run][", session.sessionId, "] stream input error. ", err)
+		return err
+	}
+	return nil
+}
+
+func (session *Session) stop() {
+	session.stopRunning.Do(
+		func() {
+			close(session.stopSignal)
+		})
+}
+
+func (session *Session) OnPrePare(appName, streamPath string) error {
+	log.Info("[Session][OnPublish][", session.sessionId, "] appName : ", appName, " streamPath : ", streamPath)
+	return session.sessionHandler.checkValidStream(session.sessionId, appName, streamPath)
+}
+
+func (session *Session) OnPublish() {
+	log.Info("[Session][OnPlay][", session.sessionId, "]")
+	session.sessionHandler.streamStart(session.sessionId)
+}
+
+func (session *Session) OnError() {
+	log.Info("[Session][OnError][", session.sessionId, "]")
+	session.sessionHandler.streamError(session.sessionId)
+}
+
+func (session *Session) OnVideoFrame(frame *media.VideoFrame) {
+	log.Error("[Session][", session.sessionId, "] OnVideoFrame")
+
+}
+
+func (session *Session) OnAudioFrame(frame *media.AudioFrame) {
+	log.Error("[Session][", session.sessionId, "] OnAudioFrame")
 
 }

@@ -22,16 +22,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package protocol
+package session
 
-import (
-	"github.com/ISSuh/my-stream-media/internal/media"
-)
-
-type RtmpHandler interface {
-	OnPrePare(appName, streamPath string) error
-	OnPublish()
-	OnError()
-	OnVideoFrame(frame *media.VideoFrame)
-	OnAudioFrame(frame *media.AudioFrame)
+type SessionHandler interface {
+	checkValidStream(sessionId int, appName, streamPath string) error
+	streamStart(sessionId int) error
+	streamEnd(sessionId int) error
+	streamError(sessionId int) error
 }

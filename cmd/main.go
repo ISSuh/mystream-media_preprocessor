@@ -175,25 +175,23 @@ func (producer *MediaProducer) dispatch() {
 }
 
 type MediaSession struct {
-	handle    *rtmp.RtmpServerHandle
-	conn      net.Conn
-	mtx       sync.Mutex
-	id        string
-	frameCome chan struct{}
-	quit      chan struct{}
-	die       sync.Once
-	C         chan *MediaFrame
+	handle *rtmp.RtmpServerHandle
+	conn   net.Conn
+	mtx    sync.Mutex
+	id     string
+	quit   chan struct{}
+	die    sync.Once
+	C      chan *MediaFrame
 }
 
 func newMediaSession(conn net.Conn) *MediaSession {
 	id := fmt.Sprintf("%d", rand.Uint64())
 	return &MediaSession{
-		id:        id,
-		conn:      conn,
-		handle:    rtmp.NewRtmpServerHandle(),
-		quit:      make(chan struct{}),
-		frameCome: make(chan struct{}, 1),
-		C:         make(chan *MediaFrame, 30),
+		id:     id,
+		conn:   conn,
+		handle: rtmp.NewRtmpServerHandle(),
+		quit:   make(chan struct{}),
+		C:      make(chan *MediaFrame, 30),
 	}
 }
 

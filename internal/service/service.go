@@ -47,12 +47,12 @@ type Service struct {
 func NewService(configure *configure.Configure) *Service {
 	return &Service{
 		configure:      configure,
-		sessionManager: session.NewSessionManager(),
+		sessionManager: session.NewSessionManager(configure),
 	}
 }
 
 func (service *Service) Run() error {
-	log.Info("[Service.Run] service running")
+	log.Info("[Service][Run] service running")
 	address := NETWORK_DEFAULT_IP + ":" + service.configure.Server.RtmpPort
 	listen, err := net.Listen(NETWORK_TCP_V4, address)
 	if err != nil {
@@ -62,12 +62,12 @@ func (service *Service) Run() error {
 	for {
 		connection, err := listen.Accept()
 		if err != nil {
-			log.Warn("[Service.Run] connection error. ", err)
+			log.Warn("[Service][Run] connection error. ", err)
 			continue
 		}
 
 		socketTransport := transport.NewSocketTransport(connection, service.configure.Server.PacketSize)
-		session := service.sessionManager.CreateNewSession(socketTransport)
-		go session.run()
+		sessionId := service.sessionManager.CreateNewSession(socketTransport)
+		service.sessionManager.RunSession(sessionId)
 	}
 }
