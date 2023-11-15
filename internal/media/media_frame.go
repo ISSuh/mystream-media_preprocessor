@@ -3,7 +3,8 @@ package media
 type MediaType int
 
 const (
-	MEDIA_VIDEO MediaType = iota
+	MEDIA_NONE MediaType = iota
+	MEDIA_VIDEO
 	MEDIA_AUDIO
 )
 
@@ -38,17 +39,14 @@ type VideoFrame struct {
 	codec VideoCodec
 }
 
-func newVideoFrame() *VideoFrame {
+func NewVideoFrame(codec VideoCodec, timestamp Timestamp, data []byte) *VideoFrame {
 	return &VideoFrame{
 		MediaFrame: MediaFrame{
 			mediaType: MEDIA_VIDEO,
-			data:      make([]byte, 0),
-			timestamp: Timestamp{
-				Pts: 0,
-				Dts: 0,
-			},
+			data:      data,
+			timestamp: timestamp,
 		},
-		codec: CODEC_VIDEO_H264,
+		codec: codec,
 	}
 }
 
@@ -61,15 +59,12 @@ type AudioFrame struct {
 	codec AudioCodec
 }
 
-func newAudioFrame() *AudioFrame {
+func NewAudioFrame(codec AudioCodec, timestamp Timestamp, data []byte) *AudioFrame {
 	return &AudioFrame{
 		MediaFrame: MediaFrame{
 			mediaType: MEDIA_AUDIO,
-			data:      make([]byte, 0),
-			timestamp: Timestamp{
-				Pts: 0,
-				Dts: 0,
-			},
+			data:      data,
+			timestamp: timestamp,
 		},
 		codec: CODEC_AUDIO_AAC,
 	}
