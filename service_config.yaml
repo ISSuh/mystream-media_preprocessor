@@ -4,4 +4,10 @@ server:
   packetSize: 65536
 
 media:
-  recordPath: ./temp
+  reserve: reserve
+
+  # seconde
+  tsRange: 2
+
+segment:
+  basePath: ./temp

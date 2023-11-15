@@ -22,59 +22,46 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package configure
+package segment
 
 import (
-	"errors"
-	"io/ioutil"
+	"os"
 
-	"gopkg.in/yaml.v2"
+	"github.com/ISSuh/my-stream-media/internal/media"
 )
 
-type ServerConfigure struct {
-	RtmpPort               string `yaml:"rtmpPort"`
-	BroadcastServerAddress string `yaml:"broadcastServerAddress"`
-	PacketSize             int    `yaml:"packetSize"`
+type Segment struct {
+	id       int
+	filePath string
+	file     *os.File
+
+	beginTime media.Timestamp
+	endTime   media.Timestamp
 }
 
-type MediaConfigure struct {
-	Reserve string `yaml:"reserve"`
-	TsRange int    `yaml:"tsRange"`
-}
-
-type SegmentConfigure struct {
-	BasePath string `yaml:"basePath"`
-}
-
-type Configure struct {
-	Server  ServerConfigure  `yaml:"server"`
-	Media   MediaConfigure   `yaml:"media"`
-	Segment SegmentConfigure `yaml:"segment"`
-}
-
-func LoadConfigure(filePath string) (*Configure, error) {
-	if len(filePath) <= 0 {
-		return nil, errors.New("Invalid option file path")
+func NewSegment(id int, filePath string) *Segment {
+	return &Segment{
+		id:        id,
+		filePath:  filePath,
+		file:      &os.File{},
+		beginTime: media.Timestamp{Pts: 0, Dts: 0},
+		endTime:   media.Timestamp{Pts: 0, Dts: 0},
 	}
-
-	var buffer []byte
-	var err error
-	if buffer, err = loadFile(filePath); err != nil {
-		return nil, err
-	}
-
-	configure := &Configure{}
-	if err = yaml.Unmarshal(buffer, configure); err != nil {
-		return nil, err
-	}
-
-	return configure, nil
 }
 
-func loadFile(path string) ([]byte, error) {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
+func (s *Segment) Write(data []byte) error {
+	if _, err := s.file.Write(data); err != nil {
+		return err
 	}
-	return buf, nil
+	return nil
+}
+
+func (s *Segment) Close(timestamp media.Timestamp) {
+	s.endTime = timestamp
+	s.file.Sync()
+	s.file.Close()
+}
+
+func (s *Segment) BeginTime() media.Timestamp {
+	return s.beginTime
 }

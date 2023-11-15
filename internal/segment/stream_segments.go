@@ -22,59 +22,48 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package configure
+package segment
 
 import (
 	"errors"
-	"io/ioutil"
-
-	"gopkg.in/yaml.v2"
+	"os"
+	"time"
 )
 
-type ServerConfigure struct {
-	RtmpPort               string `yaml:"rtmpPort"`
-	BroadcastServerAddress string `yaml:"broadcastServerAddress"`
-	PacketSize             int    `yaml:"packetSize"`
+type StreamSegments struct {
+	basePath   string
+	begineTime string
+	segment    []*Segment
+
+	idCounter int
 }
 
-type MediaConfigure struct {
-	Reserve string `yaml:"reserve"`
-	TsRange int    `yaml:"tsRange"`
-}
-
-type SegmentConfigure struct {
-	BasePath string `yaml:"basePath"`
-}
-
-type Configure struct {
-	Server  ServerConfigure  `yaml:"server"`
-	Media   MediaConfigure   `yaml:"media"`
-	Segment SegmentConfigure `yaml:"segment"`
-}
-
-func LoadConfigure(filePath string) (*Configure, error) {
-	if len(filePath) <= 0 {
-		return nil, errors.New("Invalid option file path")
+func NewStreamSegments(basePath string) *StreamSegments {
+	t := time.Now()
+	return &StreamSegments{
+		basePath:   basePath,
+		begineTime: t.Format("20060102150405"),
+		idCounter:  0,
 	}
-
-	var buffer []byte
-	var err error
-	if buffer, err = loadFile(filePath); err != nil {
-		return nil, err
-	}
-
-	configure := &Configure{}
-	if err = yaml.Unmarshal(buffer, configure); err != nil {
-		return nil, err
-	}
-
-	return configure, nil
 }
 
-func loadFile(path string) ([]byte, error) {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
+func (s *StreamSegments) Open() error {
+	currentStreamSegmentBasePath := s.basePath + "/" + s.begineTime
+	if _, err := os.Stat(currentStreamSegmentBasePath); errors.Is(err, os.ErrNotExist) {
+		err := os.MkdirAll(currentStreamSegmentBasePath, os.ModePerm)
+		if err != nil {
+			return err
+		}
 	}
-	return buf, nil
+	return nil
+}
+
+func (s *StreamSegments) Close() {
+}
+
+func (s *StreamSegments) Write(data []byte) error {
+
+}
+
+func (s *StreamSegments) createSegment() {
 }

@@ -22,59 +22,41 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package configure
+package segment
 
 import (
-	"errors"
-	"io/ioutil"
+	"strconv"
 
-	"gopkg.in/yaml.v2"
+	"github.com/ISSuh/my-stream-media/internal/configure"
 )
 
-type ServerConfigure struct {
-	RtmpPort               string `yaml:"rtmpPort"`
-	BroadcastServerAddress string `yaml:"broadcastServerAddress"`
-	PacketSize             int    `yaml:"packetSize"`
+type SegmentManager struct {
+	configure configure.SegmentConfigure
+	streams   map[int]*StreamSegments
 }
 
-type MediaConfigure struct {
-	Reserve string `yaml:"reserve"`
-	TsRange int    `yaml:"tsRange"`
-}
-
-type SegmentConfigure struct {
-	BasePath string `yaml:"basePath"`
-}
-
-type Configure struct {
-	Server  ServerConfigure  `yaml:"server"`
-	Media   MediaConfigure   `yaml:"media"`
-	Segment SegmentConfigure `yaml:"segment"`
-}
-
-func LoadConfigure(filePath string) (*Configure, error) {
-	if len(filePath) <= 0 {
-		return nil, errors.New("Invalid option file path")
+func NewSessionManager(configure configure.SegmentConfigure) *SegmentManager {
+	return &SegmentManager{
+		configure: configure,
 	}
+}
 
-	var buffer []byte
-	var err error
-	if buffer, err = loadFile(filePath); err != nil {
+func (sm *SegmentManager) OpenStreamSegments(userId int) (*StreamSegments, error) {
+	userIdStr := strconv.Itoa(userId)
+	streamSegmentBasePath := sm.configure.BasePath + "/" + userIdStr
+
+	streamSegments := NewStreamSegments(streamSegmentBasePath)
+	if err := streamSegments.Open(); err != nil {
 		return nil, err
 	}
 
-	configure := &Configure{}
-	if err = yaml.Unmarshal(buffer, configure); err != nil {
-		return nil, err
-	}
-
-	return configure, nil
+	sm.streams[userId] = streamSegments
+	return streamSegments, nil
 }
 
-func loadFile(path string) ([]byte, error) {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return buf, nil
+func (sm *SegmentManager) CloseStreamSegments(userId int) {
+	streamSegments := sm.streams[userId]
+	streamSegments.Close()
+
+	delete(sm.streams, userId)
 }
