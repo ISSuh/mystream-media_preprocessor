@@ -86,16 +86,14 @@ func (sm *SessionManager) streamStart(sessionId int) error {
 	return nil
 }
 
-func (sm *SessionManager) streamEnd(sessionId int) error {
+func (sm *SessionManager) streamEnd(sessionId int) {
 	log.Info("[SessionManager][streamEnd][", sessionId, "]")
 	sm.stopSession(sessionId)
-	return nil
 }
 
-func (sm *SessionManager) streamError(sessionId int) error {
+func (sm *SessionManager) streamError(sessionId int) {
 	log.Info("[SessionManager][streamError][", sessionId, "]")
 	sm.stopSession(sessionId)
-	return nil
 }
 
 func (sm *SessionManager) stopSession(sessionId int) {

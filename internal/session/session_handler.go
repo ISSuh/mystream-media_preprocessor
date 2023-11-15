@@ -27,6 +27,6 @@ package session
 type SessionHandler interface {
 	checkValidStream(sessionId int, appName, streamPath string) error
 	streamStart(sessionId int) error
-	streamEnd(sessionId int) error
-	streamError(sessionId int) error
+	streamEnd(sessionId int)
+	streamError(sessionId int)
 }

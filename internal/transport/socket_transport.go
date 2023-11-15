@@ -42,14 +42,18 @@ func NewSocketTransport(conn net.Conn, packetSize int) Transport {
 
 func (t *SocketTransport) Read() ([]byte, error) {
 	data := make([]byte, t.packetSize)
-	_, err := t.conn.Read(data)
+	n, err := t.conn.Read(data)
 	if err != nil {
 		return nil, err
 	}
-	return data, nil
+	return data[:n], nil
 }
 
 func (t *SocketTransport) Write(data []byte) error {
 	_, err := t.conn.Write(data)
 	return err
+}
+
+func (t *SocketTransport) Close() {
+	t.conn.Close()
 }

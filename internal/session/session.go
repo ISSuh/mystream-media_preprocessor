@@ -51,7 +51,7 @@ func NewSession(sessionId int, sessionHandler SessionHandler, transporter transp
 		sessionId:      sessionId,
 		sessionHandler: sessionHandler,
 		transporter:    transporter,
-		context:        nil,
+		context:        protocol.NewRtmpContext(),
 		stopSignal:     make(chan struct{}),
 	}
 
@@ -63,31 +63,31 @@ func (session *Session) run() {
 	for {
 		select {
 		case <-session.stopSignal:
-			break
+			log.Info("[Session][run][", session.sessionId, "] terminate session")
+			return
 		default:
 			err := session.passStream()
 			if err != nil {
-				return
+				if err == io.EOF {
+					log.Info("[Session][run][", session.sessionId, "] end of stream")
+					session.sessionHandler.streamEnd(session.sessionId)
+				} else {
+					log.Error("[Session][run][", session.sessionId, "] stream read error. ", err)
+					session.sessionHandler.streamError(session.sessionId)
+				}
 			}
 		}
-
 	}
 }
 
 func (session *Session) passStream() error {
 	data, err := session.transporter.Read()
 	if err != nil {
-		if err == io.EOF {
-			log.Error("[Session][run][", session.sessionId, "] end of stream")
-		} else {
-			log.Error("[Session][run][", session.sessionId, "] stream read error. ", err)
-		}
 		return err
 	}
 
 	err = session.context.InputStream(data)
 	if err != nil {
-		log.Error("[Session][run][", session.sessionId, "] stream input error. ", err)
 		return err
 	}
 	return nil
@@ -96,31 +96,36 @@ func (session *Session) passStream() error {
 func (session *Session) stop() {
 	session.stopRunning.Do(
 		func() {
+			log.Info("[Session][run][", session.sessionId, "] stop session")
+			session.transporter.Close()
 			close(session.stopSignal)
 		})
 }
 
 func (session *Session) OnPrePare(appName, streamPath string) error {
-	log.Info("[Session][OnPublish][", session.sessionId, "] appName : ", appName, " streamPath : ", streamPath)
+	log.Info("[Session][OnPrePare][", session.sessionId, "] appName : ", appName, " streamPath : ", streamPath)
 	return session.sessionHandler.checkValidStream(session.sessionId, appName, streamPath)
 }
 
 func (session *Session) OnPublish() {
-	log.Info("[Session][OnPlay][", session.sessionId, "]")
-	session.sessionHandler.streamStart(session.sessionId)
+	log.Info("[Session][OnPublish][", session.sessionId, "]")
+	err := session.sessionHandler.streamStart(session.sessionId)
+	if err != nil {
+		session.sessionHandler.streamEnd(session.sessionId)
+	}
 }
 
 func (session *Session) OnError() {
-	log.Info("[Session][OnError][", session.sessionId, "]")
+	log.Warn("[Session][OnError][", session.sessionId, "]")
 	session.sessionHandler.streamError(session.sessionId)
 }
 
 func (session *Session) OnVideoFrame(frame *media.VideoFrame) {
-	log.Error("[Session][", session.sessionId, "] OnVideoFrame")
+	log.Trace("[Session][OnVideoFrame][", session.sessionId, "]")
 
 }
 
 func (session *Session) OnAudioFrame(frame *media.AudioFrame) {
-	log.Error("[Session][", session.sessionId, "] OnAudioFrame")
+	log.Trace("[Session][OnAudioFrame][", session.sessionId, "]")
 
 }

@@ -27,4 +27,5 @@ package transport
 type Transport interface {
 	Read() ([]byte, error)
 	Write(data []byte) error
+	Close()
 }
