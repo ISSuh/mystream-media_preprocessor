@@ -84,8 +84,8 @@ func (context *RtmpContext) RegistHandler(handler RtmpHandler, transporter trans
 
 	context.internalHandler.OnFrame(
 		func(cid rtmpCodec.CodecID, pts, dts uint32, frame []byte) {
-			mediaType, codec := context.convertCodec(cid)
-			timestamp := media.Timestamp{Pts: pts, Dts: dts}
+			mediaType, codec := media.ConvertCodec(cid)
+			timestamp := media.Timestamp{Pts: uint64(pts), Dts: uint64(dts)}
 
 			switch mediaType {
 			case media.MEDIA_VIDEO:
@@ -100,41 +100,4 @@ func (context *RtmpContext) RegistHandler(handler RtmpHandler, transporter trans
 
 func (contex *RtmpContext) InputStream(data []byte) error {
 	return contex.internalHandler.Input(data)
-}
-
-func (context *RtmpContext) convertCodec(codecId rtmpCodec.CodecID) (media.MediaType, int) {
-	mediaType := media.MEDIA_NONE
-	codec := 0
-
-	switch codecId {
-	case rtmpCodec.CODECID_VIDEO_H264:
-		mediaType = media.MEDIA_VIDEO
-		codec = int(media.CODEC_VIDEO_H264)
-	case rtmpCodec.CODECID_VIDEO_H265:
-		mediaType = media.MEDIA_VIDEO
-		codec = int(media.CODEC_VIDEO_NONE)
-	case rtmpCodec.CODECID_VIDEO_VP8:
-		mediaType = media.MEDIA_VIDEO
-		codec = int(media.CODEC_VIDEO_NONE)
-	case rtmpCodec.CODECID_AUDIO_AAC:
-		mediaType = media.MEDIA_AUDIO
-		codec = int(media.CODEC_AUDIO_AAC)
-	case rtmpCodec.CODECID_AUDIO_G711A:
-		mediaType = media.MEDIA_AUDIO
-		codec = int(media.CODEC_AUDIO_NONE)
-	case rtmpCodec.CODECID_AUDIO_G711U:
-		mediaType = media.MEDIA_AUDIO
-		codec = int(media.CODEC_AUDIO_NONE)
-	case rtmpCodec.CODECID_AUDIO_OPUS:
-		mediaType = media.MEDIA_AUDIO
-		codec = int(media.CODEC_AUDIO_NONE)
-	case rtmpCodec.CODECID_AUDIO_MP3:
-		mediaType = media.MEDIA_AUDIO
-		codec = int(media.CODEC_AUDIO_NONE)
-	case rtmpCodec.CODECID_UNRECOGNIZED:
-		mediaType = media.MEDIA_NONE
-		codec = int(media.CODEC_AUDIO_NONE)
-	}
-
-	return mediaType, codec
 }

@@ -1,6 +1,6 @@
 package media
 
 type Timestamp struct {
-	Pts uint32
-	Dts uint32
+	Pts uint64
+	Dts uint64
 }

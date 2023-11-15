@@ -97,6 +97,7 @@ func newMediaProducer(name string, sess *MediaSession) *MediaProducer {
 
 		// os.Stdin.Read(make([]byte, 1))
 		mediaProducer.tsfile.Sync()
+		fmt.Println("muxint file writ eend")
 	}
 
 	mediaProducer.vpid = mediaProducer.muxer.AddStream(mpeg2.TS_STREAM_H264)
@@ -152,6 +153,7 @@ func (producer *MediaProducer) dispatch() {
 					}
 					// fmt.Println(producer.muxer.Write(producer.vpid, nalu, uint64(frame.pts), uint64(frame.dts)))
 					producer.muxer.Write(producer.vpid, nalu, uint64(frame.pts), uint64(frame.dts))
+					fmt.Println("muxint end")
 					return true
 				})
 			}
