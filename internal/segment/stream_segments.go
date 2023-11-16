@@ -26,7 +26,6 @@ package segment
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -41,8 +40,7 @@ type StreamSegments struct {
 
 	currentSegment *Segment
 	segments       []*Segment
-	lastTimestamp  media.Timestamp
-	streamTime     float64
+	streamTime     time.Time
 
 	idCounter int
 }
@@ -56,8 +54,7 @@ func NewStreamSegments(basePath string, segmentRange int) *StreamSegments {
 		segmentRange:   segmentRange,
 		currentSegment: nil,
 		segments:       make([]*Segment, 0),
-		lastTimestamp:  media.Timestamp{Pts: 0, Dts: 0},
-		streamTime:     0,
+		streamTime:     time.Now(),
 		idCounter:      0,
 	}
 }
@@ -80,7 +77,7 @@ func (s *StreamSegments) Write(data []byte, timestamp media.Timestamp) error {
 	if s.needNewSegment(timestamp) {
 		segment, err := s.createSegment()
 		if err != nil {
-			return nil
+			return err
 		}
 
 		if s.currentSegment != nil {
@@ -89,7 +86,7 @@ func (s *StreamSegments) Write(data []byte, timestamp media.Timestamp) error {
 		}
 
 		s.currentSegment = segment
-		s.lastTimestamp = media.Timestamp{Pts: 0, Dts: 0}
+		s.streamTime = time.Now()
 	}
 
 	return s.currentSegment.write(data, timestamp)
@@ -97,16 +94,11 @@ func (s *StreamSegments) Write(data []byte, timestamp media.Timestamp) error {
 
 func (s *StreamSegments) needNewSegment(timestamp media.Timestamp) bool {
 	if s.currentSegment == nil {
-		fmt.Println("[TEST][StreamSegments] needNewSegment")
 		return true
 	}
 
-	s.streamTime += float64(timestamp.Pts) * 0.014
-	fmt.Println("[TEST][StreamSegments]["+time.Now().String()+"]needNewSegment - ", timestamp.Pts, " / ", s.streamTime)
-	if (timestamp.Pts - s.currentSegment.beginTime.Pts) > uint64(2*1000) {
-		fmt.Println("[TEST][StreamSegments] needNewSegment - ",
-			timestamp.Pts, " / ", s.currentSegment.beginTime.Pts, " // ",
-			(timestamp.Pts - s.currentSegment.beginTime.Pts))
+	elapsed := time.Since(s.streamTime).Milliseconds()
+	if elapsed > int64(s.segmentRange)*1000 {
 		return true
 	}
 
@@ -114,8 +106,6 @@ func (s *StreamSegments) needNewSegment(timestamp media.Timestamp) bool {
 }
 
 func (s *StreamSegments) createSegment() (*Segment, error) {
-	fmt.Println("[TEST][StreamSegments] createSegment")
-
 	now := time.Now().Format("20060102150405")
 	segmentFileName := s.streamBasePath + "/" + strconv.Itoa(s.idCounter) + "_" + now + ".ts"
 	segment := NewSegment(s.idCounter, segmentFileName)
