@@ -40,22 +40,32 @@ func (frame *MediaFrame) Codec() int {
 
 type VideoFrame struct {
 	MediaFrame
-	codec VideoCodec
+	codec       VideoCodec
+	hasIDRFrame bool
 }
 
-func NewVideoFrame(codec VideoCodec, timestamp Timestamp, data []byte) *VideoFrame {
+func NewVideoFrame(codec VideoCodec, timestamp Timestamp, data []byte, hasIDRFrame bool) *VideoFrame {
 	return &VideoFrame{
 		MediaFrame: MediaFrame{
 			mediaType: MEDIA_VIDEO,
 			data:      data,
 			timestamp: timestamp,
 		},
-		codec: codec,
+		codec:       codec,
+		hasIDRFrame: hasIDRFrame,
 	}
 }
 
 func (frame *VideoFrame) Codec() VideoCodec {
 	return frame.codec
+}
+
+func (frame *VideoFrame) HasIDRFrame() bool {
+	return frame.hasIDRFrame
+}
+
+func (frame *VideoFrame) SetHasIDRFrame(hasIDRFrame bool) {
+	frame.hasIDRFrame = hasIDRFrame
 }
 
 type AudioFrame struct {

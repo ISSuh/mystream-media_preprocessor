@@ -90,7 +90,7 @@ func (context *RtmpContext) RegistHandler(handler RtmpHandler, transporter trans
 			switch mediaType {
 			case media.MEDIA_VIDEO:
 				context.handler.OnVideoFrame(
-					media.NewVideoFrame(media.VideoCodec(codec), timestamp, frame))
+					media.NewVideoFrame(media.VideoCodec(codec), timestamp, frame, false))
 			case media.MEDIA_AUDIO:
 				context.handler.OnAudioFrame(
 					media.NewAudioFrame(media.AudioCodec(codec), timestamp, frame))

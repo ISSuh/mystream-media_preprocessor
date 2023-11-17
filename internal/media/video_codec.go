@@ -32,6 +32,10 @@ type CodecH264 struct {
 }
 
 func (codec *CodecH264) ProcessingFrame(frame *VideoFrame) {
+	if rtmpCodec.IsH264IDRFrame(frame.data) {
+		frame.SetHasIDRFrame(true)
+	}
+
 	rtmpCodec.SplitFrameWithStartCode(frame.data,
 		func(nalu []byte) bool {
 			if rtmpCodec.H264NaluType(nalu) <= rtmpCodec.H264_NAL_I_SLICE {

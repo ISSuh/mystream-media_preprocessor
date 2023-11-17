@@ -138,7 +138,8 @@ func (s *Session) OnVideoFrame(frame *media.VideoFrame) {
 		return
 	}
 
-	err = s.streamSegmgment.Write(buffer, frame.Timestamp())
+	muxedVideoFrame := media.NewVideoFrame(frame.Codec(), frame.Timestamp(), buffer, frame.HasIDRFrame())
+	err = s.streamSegmgment.WriteVideo(muxedVideoFrame)
 	if err != nil {
 		log.Warn("[Session][OnVideoFrame][", s.sessionId, "] segment write fail. ", err)
 		return
