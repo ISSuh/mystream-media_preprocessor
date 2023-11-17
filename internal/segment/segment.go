@@ -77,7 +77,7 @@ func (s *Segment) write(data []byte, timestamp media.Timestamp) error {
 }
 
 func (s *Segment) close() {
-	if s.isOpend {
+	if s.isOpend && s.file != nil {
 		_ = s.file.Sync()
 		s.file.Close()
 

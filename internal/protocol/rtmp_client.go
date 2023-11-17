@@ -22,26 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package media
+package protocol
 
-import (
-	rtmpCodec "github.com/yapingcat/gomedia/go-codec"
-)
-
-func CheckIsIDRFrame(frame *VideoFrame) bool {
-	isIDRFrame := false
-	if rtmpCodec.IsH264IDRFrame(frame.Data()) {
-		isIDRFrame = true
-	}
-
-	rtmpCodec.SplitFrameWithStartCode(frame.Data(),
-		func(nalu []byte) bool {
-			if rtmpCodec.H264NaluType(nalu) <= rtmpCodec.H264_NAL_I_SLICE {
-				frame.timestamp.Pts += 40
-				frame.timestamp.Dts += 40
-			}
-			return true
-		})
-
-	return isIDRFrame
+type RtmpClient struct {
 }

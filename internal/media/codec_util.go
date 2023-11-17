@@ -39,6 +39,14 @@ const (
 	CODEC_AUDIO_AAC
 )
 
+type Codec int
+
+const (
+	CODEC_NONE Codec = iota
+	CODEC_VIDEO_H264_
+	CODEC_AUDIO_AAC_
+)
+
 func ConvertCodec(codecId rtmpCodec.CodecID) (MediaType, int) {
 	mediaType := MEDIA_NONE
 	codec := 0

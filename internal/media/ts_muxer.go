@@ -34,7 +34,6 @@ type TsMuxer struct {
 	videoStreamId uint16
 	audioStreamId uint16
 	context       *mpeg2.TSMuxer
-	videoCodec    *CodecH264
 }
 
 func NewTSMuxer() *TsMuxer {
@@ -42,10 +41,10 @@ func NewTSMuxer() *TsMuxer {
 		videoStreamId: 0,
 		audioStreamId: 0,
 		context:       mpeg2.NewTSMuxer(),
-		videoCodec:    &CodecH264{},
 	}
 
 	tsMuxer.videoStreamId = tsMuxer.context.AddStream(mpeg2.TS_STREAM_H264)
+	tsMuxer.audioStreamId = tsMuxer.context.AddStream(mpeg2.TS_STREAM_AAC)
 	return tsMuxer
 }
 
@@ -59,8 +58,25 @@ func (m *TsMuxer) MuxingVideo(frame *VideoFrame) ([]byte, error) {
 		buffer = append(buffer, data...)
 	}
 
-	m.videoCodec.ProcessingFrame(frame)
 	err := m.context.Write(m.videoStreamId, frame.Data(), frame.Pts(), frame.Dts())
+	if err != nil {
+		return nil, err
+	}
+
+	return buffer, nil
+}
+
+func (m *TsMuxer) MuxingAudio(frame *AudioFrame) ([]byte, error) {
+	if (frame.mediaType != MEDIA_AUDIO) || (frame.codec != CODEC_AUDIO_AAC) {
+		return nil, errors.New("invalid frame")
+	}
+
+	buffer := make([]byte, 0)
+	m.context.OnPacket = func(data []byte) {
+		buffer = append(buffer, data...)
+	}
+
+	err := m.context.Write(m.audioStreamId, frame.Data(), frame.Pts(), frame.Dts())
 	if err != nil {
 		return nil, err
 	}

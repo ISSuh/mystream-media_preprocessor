@@ -138,8 +138,8 @@ func (s *Session) OnVideoFrame(frame *media.VideoFrame) {
 		return
 	}
 
-	muxedVideoFrame := media.NewVideoFrame(frame.Codec(), frame.Timestamp(), buffer, frame.HasIDRFrame())
-	err = s.streamSegmgment.WriteVideo(muxedVideoFrame)
+	isIDRFraem := media.CheckIsIDRFrame(frame)
+	err = s.streamSegmgment.WriteVideo(buffer, frame.Timestamp(), isIDRFraem)
 	if err != nil {
 		log.Warn("[Session][OnVideoFrame][", s.sessionId, "] segment write fail. ", err)
 		return
@@ -148,4 +148,16 @@ func (s *Session) OnVideoFrame(frame *media.VideoFrame) {
 
 func (s *Session) OnAudioFrame(frame *media.AudioFrame) {
 	log.Trace("[Session][OnAudioFrame][", s.sessionId, "]")
+
+	buffer, err := s.muxer.MuxingAudio(frame)
+	if err != nil {
+		log.Warn("[Session][OnAudioFrame][", s.sessionId, "] audio muxing fail. ", err)
+		return
+	}
+
+	err = s.streamSegmgment.WriteAudio(buffer, frame.Timestamp())
+	if err != nil {
+		log.Warn("[Session][OnAudioFrame][", s.sessionId, "] segment write fail. ", err)
+		return
+	}
 }

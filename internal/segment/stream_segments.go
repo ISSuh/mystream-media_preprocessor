@@ -40,7 +40,6 @@ type StreamSegments struct {
 
 	currentSegment *Segment
 	segments       []*Segment
-	streamTime     uint64
 
 	idCounter int
 }
@@ -54,7 +53,6 @@ func NewStreamSegments(basePath string, segmentRange int) *StreamSegments {
 		segmentRange:   segmentRange,
 		currentSegment: nil,
 		segments:       make([]*Segment, 0),
-		streamTime:     0,
 		idCounter:      0,
 	}
 }
@@ -70,11 +68,13 @@ func (s *StreamSegments) Open() error {
 }
 
 func (s *StreamSegments) Close() {
-	s.currentSegment.close()
+	if s.currentSegment != nil {
+		s.currentSegment.close()
+	}
 }
 
-func (s *StreamSegments) WriteVideo(frame *media.VideoFrame) error {
-	if s.needNewSegment(frame) {
+func (s *StreamSegments) WriteVideo(data []byte, timeestamp media.Timestamp, isIDRFraem bool) error {
+	if s.needNewSegment(isIDRFraem) {
 		segment, err := s.createSegment()
 		if err != nil {
 			return err
@@ -86,18 +86,21 @@ func (s *StreamSegments) WriteVideo(frame *media.VideoFrame) error {
 		}
 
 		s.currentSegment = segment
-		s.streamTime = frame.Dts()
 	}
 
-	return s.currentSegment.write(frame.Data(), frame.Timestamp())
+	return s.currentSegment.write(data, timeestamp)
 }
 
-func (s *StreamSegments) needNewSegment(frame *media.VideoFrame) bool {
+func (s *StreamSegments) WriteAudio(data []byte, timeestamp media.Timestamp) error {
+	return s.currentSegment.write(data, timeestamp)
+}
+
+func (s *StreamSegments) needNewSegment(isIDRFraem bool) bool {
 	if s.currentSegment == nil {
 		return true
 	}
 
-	if frame.HasIDRFrame() {
+	if isIDRFraem {
 		return true
 	}
 
