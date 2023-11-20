@@ -29,9 +29,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ISSuh/my-stream-media/internal/configure"
-	"github.com/ISSuh/my-stream-media/internal/session"
-	"github.com/ISSuh/my-stream-media/internal/transport"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/configure"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/session"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/transport"
 )
 
 const (

@@ -5,8 +5,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/ISSuh/my-stream-media/internal/configure"
-	"github.com/ISSuh/my-stream-media/internal/service"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/configure"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/service"
 )
 
 func main() {

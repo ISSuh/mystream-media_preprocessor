@@ -25,8 +25,8 @@ SOFTWARE.
 package protocol
 
 import (
-	"github.com/ISSuh/my-stream-media/internal/media"
-	"github.com/ISSuh/my-stream-media/internal/transport"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/media"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/transport"
 	log "github.com/sirupsen/logrus"
 
 	rtmpCodec "github.com/yapingcat/gomedia/go-codec"

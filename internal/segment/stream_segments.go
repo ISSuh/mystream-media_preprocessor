@@ -30,7 +30,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ISSuh/my-stream-media/internal/media"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/media"
 )
 
 type StreamSegments struct {

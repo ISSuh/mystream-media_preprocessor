@@ -27,7 +27,7 @@ package segment
 import (
 	"os"
 
-	"github.com/ISSuh/my-stream-media/internal/media"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/media"
 )
 
 type Segment struct {
