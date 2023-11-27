@@ -1,13 +1,37 @@
 server:
+  # base RTMP stream port
   rtmpPort: 1935
-  broadcastServerAddress: localhost:33669
+
+  discovery:
+    # discovey server URL
+    serverUrls:
+      - http://localhost:8761/eureka/v2
+
+    # discovey server connection timeout
+    # second
+    connectTimeout: 10
+
+    # interval
+    # second
+    pollInterval: 30
+
+    # retry count
+    retry: 3
+
+  # tcp socket packet buffer size
   packetSize: 65536
+
+  # timeout when http request
+  # millisecond
+  requestTimeout : 2000
 
 media:
   reserve: reserve
 
 segment:
+  # base directory about mpeg ts segemnts
   basePath: ./temp
 
+  # duration of mpeg ts segment
   # seconde
   tsRange: 2

@@ -62,7 +62,9 @@ func (sm *SegmentManager) CloseStreamSegments(userId int) {
 	log.Info("[SegmentManager][CloseStreamSegments][", userId, "]")
 
 	streamSegments := sm.streams[userId]
-	streamSegments.Close()
+	if streamSegments != nil {
+		streamSegments.Close()
+	}
 
 	delete(sm.streams, userId)
 }

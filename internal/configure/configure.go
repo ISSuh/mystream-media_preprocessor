@@ -31,10 +31,19 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type DiscorveryConfigure struct {
+	ServerUrls        []string `yaml:"serverUrls"`
+	ConnectionTimeout int      `yaml:"connectTimeout"`
+	PollInterval      int      `yaml:"pollInterval"`
+	Retry             int      `yaml:"retry"`
+}
+
 type ServerConfigure struct {
-	RtmpPort               string `yaml:"rtmpPort"`
-	BroadcastServerAddress string `yaml:"broadcastServerAddress"`
-	PacketSize             int    `yaml:"packetSize"`
+	RtmpPort               string              `yaml:"rtmpPort"`
+	Discovery              DiscorveryConfigure `yaml:"discovery"`
+	BroadcastServerAddress string              `yaml:"broadcastServerAddress"`
+	PacketSize             int                 `yaml:"packetSize"`
+	RequestTimeout         int                 `yaml:"requestTimeout"`
 }
 
 type MediaConfigure struct {

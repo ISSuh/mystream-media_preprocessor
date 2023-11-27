@@ -30,6 +30,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/ISSuh/mystream-media_preprocessor/internal/configure"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/discovery"
 	"github.com/ISSuh/mystream-media_preprocessor/internal/session"
 	"github.com/ISSuh/mystream-media_preprocessor/internal/transport"
 )
@@ -40,20 +41,27 @@ const (
 )
 
 type Service struct {
-	configure      *configure.Configure
-	sessionManager *session.SessionManager
+	configure        *configure.Configure
+	sessionManager   *session.SessionManager
+	discorveryClient *discovery.DiscorveryClient
 }
 
 func NewService(configure *configure.Configure) *Service {
 	return &Service{
-		configure:      configure,
-		sessionManager: session.NewSessionManager(configure),
+		configure:        configure,
+		sessionManager:   session.NewSessionManager(configure),
+		discorveryClient: discovery.NewDiscorveryClient(&configure.Server.Discovery),
 	}
 }
 
-func (service *Service) Run() error {
+func (s *Service) Run() error {
 	log.Info("[Service][Run] service running")
-	address := NETWORK_DEFAULT_IP + ":" + service.configure.Server.RtmpPort
+
+	if err := s.updateBroadcastServiceAddress(); err != nil {
+		return err
+	}
+
+	address := NETWORK_DEFAULT_IP + ":" + s.configure.Server.RtmpPort
 	listen, err := net.Listen(NETWORK_TCP_V4, address)
 	if err != nil {
 		return err
@@ -66,8 +74,18 @@ func (service *Service) Run() error {
 			continue
 		}
 
-		socketTransport := transport.NewSocketTransport(connection, service.configure.Server.PacketSize)
-		sessionId := service.sessionManager.CreateNewSession(socketTransport)
-		service.sessionManager.RunSession(sessionId)
+		socketTransport := transport.NewSocketTransport(connection, s.configure.Server.PacketSize)
+		sessionId := s.sessionManager.CreateNewSession(socketTransport)
+		s.sessionManager.RunSession(sessionId)
 	}
+}
+
+func (s *Service) updateBroadcastServiceAddress() error {
+	broadcastServerAddress, err := s.discorveryClient.GetBroadcastServiceAddress()
+	if err != nil {
+		return err
+	}
+
+	s.configure.Server.BroadcastServerAddress = broadcastServerAddress
+	return nil
 }
