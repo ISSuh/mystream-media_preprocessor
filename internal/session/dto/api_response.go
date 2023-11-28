@@ -30,7 +30,7 @@ type ApiError struct {
 }
 
 type ApiResponse struct {
-	Success bool     `json:"success"`
-	Result  string   `json:"result"`
-	Error   ApiError `json:"error"`
+	Success bool         `json:"success"`
+	Result  StreamStatus `json:"result"`
+	Error   ApiError     `json:"error"`
 }

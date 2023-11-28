@@ -198,7 +198,7 @@ func (sm *SessionManager) requestValidateStreamKey(sessionId int, streamKey stri
 	apiResponse := dto.ApiResponse{}
 	err = json.Unmarshal(body, &apiResponse)
 	if err != nil {
-		log.Error("[SessionManager][checkValidStream][", sessionId, "] body parse error. ", err)
+		log.Error("[SessionManager][checkValidStream][", sessionId, "] body parse error. ", err, " / ", string(body))
 		return err
 	}
 
