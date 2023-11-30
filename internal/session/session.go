@@ -38,6 +38,7 @@ import (
 
 type Session struct {
 	sessionId int
+	streamKey string
 
 	sessionHandler SessionHandler
 	transporter    transport.Transport
@@ -50,9 +51,10 @@ type Session struct {
 	streamSegmgment *segment.StreamSegments
 }
 
-func NewSession(sessionId int, sessionHandler SessionHandler, transporter transport.Transport) *Session {
+func NewSession(sessionHandler SessionHandler, transporter transport.Transport) *Session {
 	session := &Session{
-		sessionId:      sessionId,
+		sessionId:      -1,
+		streamKey:			 "",
 		sessionHandler: sessionHandler,
 		transporter:    transporter,
 		context:        protocol.NewRtmpContext(),
@@ -64,11 +66,7 @@ func NewSession(sessionId int, sessionHandler SessionHandler, transporter transp
 	return session
 }
 
-func (s *Session) registStreamSegment(streamSegmgment *segment.StreamSegments) {
-	s.streamSegmgment = streamSegmgment
-}
-
-func (s *Session) run() {
+func (s *Session) Run() {
 	for {
 		select {
 		case <-s.stopSignal:
@@ -79,14 +77,22 @@ func (s *Session) run() {
 			if err != nil {
 				if err == io.EOF {
 					log.Info("[Session][run][", s.sessionId, "] end of stream")
-					s.sessionHandler.streamEnd(s.sessionId)
+					s.sessionHandler.streamEnd(s)
 				} else {
 					log.Error("[Session][run][", s.sessionId, "] stream read error. ", err)
-					s.sessionHandler.streamError(s.sessionId)
+					s.sessionHandler.streamError(s)
 				}
 			}
 		}
 	}
+}
+
+func (s *Session) setSessionId(id int) {
+	s.sessionId = id
+}
+
+func (s *Session) registStreamSegment(streamSegmgment *segment.StreamSegments) {
+	s.streamSegmgment = streamSegmgment
 }
 
 func (s *Session) passStream() error {
@@ -113,20 +119,21 @@ func (s *Session) stop() {
 
 func (s *Session) OnPrePare(appName, streamPath string) error {
 	log.Info("[Session][OnPrePare][", s.sessionId, "] appName : ", appName, " streamPath : ", streamPath)
-	return s.sessionHandler.checkValidStream(s.sessionId, appName, streamPath)
+	s.streamKey = streamPath
+	return s.sessionHandler.checkValidStream(s, appName, streamPath)
 }
 
 func (s *Session) OnPublish() {
 	log.Info("[Session][OnPublish][", s.sessionId, "]")
-	err := s.sessionHandler.streamStart(s.sessionId)
+	err := s.sessionHandler.streamStart(s)
 	if err != nil {
-		s.sessionHandler.streamEnd(s.sessionId)
+		s.sessionHandler.streamEnd(s)
 	}
 }
 
 func (s *Session) OnError() {
 	log.Warn("[Session][OnError][", s.sessionId, "]")
-	s.sessionHandler.streamError(s.sessionId)
+	s.sessionHandler.streamError(s)
 }
 
 func (s *Session) OnVideoFrame(frame *media.VideoFrame) {

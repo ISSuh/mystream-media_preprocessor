@@ -75,8 +75,8 @@ func (s *Service) Run() error {
 		}
 
 		socketTransport := transport.NewSocketTransport(connection, s.configure.Server.PacketSize)
-		sessionId := s.sessionManager.CreateNewSession(socketTransport)
-		s.sessionManager.RunSession(sessionId)
+		session := s.sessionManager.CreateNewSession(socketTransport)
+		go session.Run()
 	}
 }
 

@@ -44,17 +44,17 @@ func NewSessionManager(configure configure.SegmentConfigure) *SegmentManager {
 	}
 }
 
-func (sm *SegmentManager) OpenStreamSegments(userId int) (*StreamSegments, error) {
-	log.Info("[SegmentManager][OpenStreamSegments][", userId, "]")
-	userIdStr := strconv.Itoa(userId)
-	streamSegmentBasePath := sm.configure.BasePath + "/" + userIdStr
+func (sm *SegmentManager) OpenStreamSegments(streamId int, uri string) (*StreamSegments, error) {
+	log.Info("[SegmentManager][OpenStreamSegments][", streamId, "]")
+	streamIdStr := strconv.Itoa(streamId)
+	streamSegmentBasePath := sm.configure.BasePath + "/" + streamIdStr + "/" + uri
 
 	streamSegments := NewStreamSegments(streamSegmentBasePath, sm.configure.TsRange)
 	if err := streamSegments.Open(); err != nil {
 		return nil, err
 	}
 
-	sm.streams[userId] = streamSegments
+	sm.streams[streamId] = streamSegments
 	return streamSegments, nil
 }
 

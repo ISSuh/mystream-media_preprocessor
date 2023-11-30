@@ -25,8 +25,8 @@ SOFTWARE.
 package session
 
 type SessionHandler interface {
-	checkValidStream(sessionId int, appName, streamPath string) error
-	streamStart(sessionId int) error
-	streamEnd(sessionId int)
-	streamError(sessionId int)
+	checkValidStream(session *Session, appName, streamPath string) error
+	streamStart(session *Session) error
+	streamEnd(session *Session)
+	streamError(session *Session)
 }
