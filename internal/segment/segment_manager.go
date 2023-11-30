@@ -25,8 +25,6 @@ SOFTWARE.
 package segment
 
 import (
-	"strconv"
-
 	log "github.com/sirupsen/logrus"
 
 	"github.com/ISSuh/mystream-media_preprocessor/internal/configure"
@@ -46,8 +44,7 @@ func NewSessionManager(configure configure.SegmentConfigure) *SegmentManager {
 
 func (sm *SegmentManager) OpenStreamSegments(streamId int, uri string) (*StreamSegments, error) {
 	log.Info("[SegmentManager][OpenStreamSegments][", streamId, "]")
-	streamIdStr := strconv.Itoa(streamId)
-	streamSegmentBasePath := sm.configure.BasePath + "/" + streamIdStr + "/" + uri
+	streamSegmentBasePath := sm.configure.BasePath + uri
 
 	streamSegments := NewStreamSegments(streamSegmentBasePath, sm.configure.TsRange)
 	if err := streamSegments.Open(); err != nil {

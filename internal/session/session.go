@@ -53,13 +53,14 @@ type Session struct {
 
 func NewSession(sessionHandler SessionHandler, transporter transport.Transport) *Session {
 	session := &Session{
-		sessionId:      -1,
-		streamKey:			 "",
-		sessionHandler: sessionHandler,
-		transporter:    transporter,
-		context:        protocol.NewRtmpContext(),
-		muxer:          media.NewTSMuxer(),
-		stopSignal:     make(chan struct{}),
+		sessionId:       -1,
+		streamKey:       "",
+		sessionHandler:  sessionHandler,
+		transporter:     transporter,
+		context:         protocol.NewRtmpContext(),
+		stopSignal:      make(chan struct{}),
+		muxer:           media.NewTSMuxer(),
+		streamSegmgment: nil,
 	}
 
 	session.context.RegistHandler(session, transporter)
@@ -118,7 +119,7 @@ func (s *Session) stop() {
 }
 
 func (s *Session) OnPrePare(appName, streamPath string) error {
-	log.Info("[Session][OnPrePare][", s.sessionId, "] appName : ", appName, " streamPath : ", streamPath)
+	log.Info("[Session][OnPrePare] appName : ", appName, " streamPath : ", streamPath)
 	s.streamKey = streamPath
 	return s.sessionHandler.checkValidStream(s, appName, streamPath)
 }

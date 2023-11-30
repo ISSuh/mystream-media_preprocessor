@@ -25,7 +25,7 @@ SOFTWARE.
 package dto
 
 type StreamStatus struct {
-	StreamId   int    `json:"streamId"`
+	StreamId   int    `json:"id"`
 	Active     bool   `json:"active"`
 	Url        string `json:"url"`
 	ActiveAt   string `json:"streamActiveAt"`

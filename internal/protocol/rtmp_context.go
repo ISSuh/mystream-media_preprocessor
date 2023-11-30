@@ -67,7 +67,6 @@ func (context *RtmpContext) RegistHandler(handler RtmpHandler, transporter trans
 		func(appName, streamPath string) rtmp.StatusCode {
 			err := context.handler.OnPrePare(appName, streamPath)
 			if err != nil {
-				context.handler.OnError()
 				return rtmp.NETCONNECT_CONNECT_REJECTED
 			}
 			return rtmp.NETSTREAM_PUBLISH_START

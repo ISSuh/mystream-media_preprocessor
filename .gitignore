@@ -30,4 +30,5 @@
 *.out
 *.app
 
-./temp
+# Media
+*.ts

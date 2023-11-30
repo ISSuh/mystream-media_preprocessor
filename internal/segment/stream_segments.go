@@ -45,11 +45,8 @@ type StreamSegments struct {
 }
 
 func NewStreamSegments(basePath string, segmentRange int) *StreamSegments {
-	t := time.Now()
-	streamBasePath := basePath + "/" + t.Format("20060102150405")
-
 	return &StreamSegments{
-		streamBasePath: streamBasePath,
+		streamBasePath: basePath,
 		segmentRange:   segmentRange,
 		currentSegment: nil,
 		segments:       make([]*Segment, 0),

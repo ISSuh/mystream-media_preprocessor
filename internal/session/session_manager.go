@@ -28,7 +28,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net"
 	"net/http"
@@ -102,11 +102,11 @@ func (sm *SessionManager) checkValidStream(session *Session, appName, streamKey 
 		return err
 	}
 
-	if !streamStatus.Active || (len(streamStatus.Url) != 0) {
+	if !streamStatus.Active || (len(streamStatus.Url) == 0) {
 		return errors.New("invalide stream status")
 	}
 
-	if _, exist := sm.sessions[streamStatus.StreamId]; !exist {
+	if _, exist := sm.sessions[streamStatus.StreamId]; exist {
 		return errors.New("alread exist session")
 	}
 
@@ -132,7 +132,7 @@ func (sm *SessionManager) streamEnd(session *Session) {
 	sm.requestStreamStatus(streamDeactive, false)
 
 	sm.segmentManager.CloseStreamSegments(session.sessionId)
-	sm.stopSession(session.sessionId)
+	sm.stopSession(session)
 }
 
 func (sm *SessionManager) streamError(session *Session) {
@@ -141,18 +141,16 @@ func (sm *SessionManager) streamError(session *Session) {
 	sm.requestStreamStatus(streamDeactive, false)
 
 	sm.segmentManager.CloseStreamSegments(session.sessionId)
-	sm.stopSession(session.sessionId)
+	sm.stopSession(session)
 }
 
-func (sm *SessionManager) stopSession(sessionId int) {
-	session, exist := sm.sessions[sessionId]
-	if !exist {
-		log.Error("[SessionManager][stopSession] invalid session id. ", sessionId)
-		return
+func (sm *SessionManager) stopSession(session *Session) {
+	_, exist := sm.sessions[session.sessionId]
+	if exist {
+		delete(sm.sessions, session.sessionId)
 	}
 
 	session.stop()
-	delete(sm.sessions, sessionId)
 }
 
 func (sm *SessionManager) addSession(streamId int, session *Session) {
@@ -169,7 +167,7 @@ func (sm *SessionManager) requestValidateStreamKey(streamKey string) (*dto.Strea
 	}
 
 	if !response.Success {
-		log.Error("[SessionManager][requestValidateStreamKey] validate fail from broadcast service.", response.Error.Message)
+		log.Error("[SessionManager][requestValidateStreamKey] validate fail from broadcast service. ", response.Error.Message)
 		return nil, errors.New("validate fail from broadcast service. " + response.Error.Message)
 	}
 
@@ -184,7 +182,7 @@ func (sm *SessionManager) requestStreamStatus(streamActive dto.StreamActive, act
 	}
 
 	path := StreamActiveUrlPath
-	if (!active) {
+	if !active {
 		path = StreamDeactiveUrlPath
 	}
 
@@ -200,6 +198,7 @@ func (sm *SessionManager) requestStreamStatus(streamActive dto.StreamActive, act
 		return nil, err
 	}
 
+	log.Info("[SessionManager][requestStreamStatus] response : ", string(response))
 	return apiResponse, nil
 }
 
@@ -219,7 +218,7 @@ func (sm *SessionManager) requestToBroadcastService(uri string, requestBody stri
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Error("[SessionManager][requestToBroadcastService] body parse error. ", err)
 		return nil, err
