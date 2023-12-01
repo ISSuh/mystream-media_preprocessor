@@ -106,7 +106,7 @@ func (s *StreamSegments) needNewSegment(isIDRFraem bool) bool {
 
 func (s *StreamSegments) createSegment() (*Segment, error) {
 	now := time.Now().Format("20060102150405")
-	segmentFileName := s.streamBasePath + "/" + strconv.Itoa(s.idCounter) + "_" + now + ".ts"
+	segmentFileName := s.streamBasePath + "/" + now + "_" + strconv.Itoa(s.idCounter) + ".ts"
 	segment := NewSegment(s.idCounter, segmentFileName)
 
 	if err := segment.open(); err != nil {

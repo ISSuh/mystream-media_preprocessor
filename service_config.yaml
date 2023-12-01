@@ -30,7 +30,7 @@ media:
 
 segment:
   # base directory about mpeg ts segemnts
-  basePath: ./temp
+  basePath: /tmp/mystream
 
   # duration of mpeg ts segment
   # seconde
