@@ -31,22 +31,24 @@ import (
 )
 
 type SegmentManager struct {
-	configure configure.SegmentConfigure
-	streams   map[int]*StreamSegments
+	segmentConfigure configure.SegmentConfigure
+	mediaConfigure   configure.MediaConfigure
+	streams          map[int]*StreamSegments
 }
 
-func NewSessionManager(configure configure.SegmentConfigure) *SegmentManager {
+func NewSessionManager(segmentConfigure configure.SegmentConfigure, mediaConfigure configure.MediaConfigure) *SegmentManager {
 	return &SegmentManager{
-		configure: configure,
-		streams:   make(map[int]*StreamSegments, 0),
+		segmentConfigure: segmentConfigure,
+		mediaConfigure:   mediaConfigure,
+		streams:          make(map[int]*StreamSegments, 0),
 	}
 }
 
 func (sm *SegmentManager) OpenStreamSegments(streamId int, uri string) (*StreamSegments, error) {
 	log.Info("[SegmentManager][OpenStreamSegments][", streamId, "]")
-	streamSegmentBasePath := sm.configure.BasePath + uri
+	streamSegmentBasePath := sm.segmentConfigure.BasePath + uri
 
-	streamSegments := NewStreamSegments(streamSegmentBasePath, sm.configure.TsRange)
+	streamSegments := NewStreamSegments(sm.mediaConfigure, streamSegmentBasePath)
 	if err := streamSegments.Open(); err != nil {
 		return nil, err
 	}

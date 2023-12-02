@@ -68,7 +68,7 @@ func NewSessionManager(configure *configure.Configure) *SessionManager {
 		sessions:       make(map[int]*Session),
 		rand:           rand,
 		httpClient:     nil,
-		segmentManager: segment.NewSessionManager(configure.Segment),
+		segmentManager: segment.NewSessionManager(configure.Segment, configure.Media),
 	}
 
 	sessionManager.httpClient = &http.Client{
@@ -110,9 +110,12 @@ func (sm *SessionManager) checkValidStream(session *Session, appName, streamKey 
 		return errors.New("alread exist session")
 	}
 
-	sm.addSession(streamStatus.StreamId, session)
+	streamId := streamStatus.StreamId
+	streamUrl := streamStatus.Url
 
-	streamSegments, err := sm.segmentManager.OpenStreamSegments(streamStatus.StreamId, streamStatus.Url)
+	sm.addSession(streamId, session)
+
+	streamSegments, err := sm.segmentManager.OpenStreamSegments(streamId, streamUrl)
 	if err != nil {
 		return err
 	}

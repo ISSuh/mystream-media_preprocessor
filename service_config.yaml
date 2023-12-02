@@ -26,11 +26,23 @@ server:
   requestTimeout : 2000
 
 media:
-  reserve: reserve
+  encoding:
+    - resolution: 1920x1080
+      frame: 30
+      keyint: 30
+      segmentTime: 2
+    - resolution: 1280x720
+      frame: 30
+      keyint: 60
+      segmentTime: 2
+    - resolution: 852x480
+      frame: 30
+      keyint: 60
+      segmentTime: 2
 
 segment:
   # base directory about mpeg ts segemnts
-  basePath: /tmp/mystream
+  basePath: ./temp
 
   # duration of mpeg ts segment
   # seconde

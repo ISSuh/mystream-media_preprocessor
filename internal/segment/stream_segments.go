@@ -30,27 +30,31 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ISSuh/mystream-media_preprocessor/internal/configure"
 	"github.com/ISSuh/mystream-media_preprocessor/internal/media"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/media/ffmpeg"
 )
 
 type StreamSegments struct {
+	mediaConfigure configure.MediaConfigure
+
 	streamBasePath string
-
-	segmentRange int
-
 	currentSegment *Segment
 	segments       []*Segment
+
+	wrapper *ffmpeg.FFmpegWrapper
 
 	idCounter int
 }
 
-func NewStreamSegments(basePath string, segmentRange int) *StreamSegments {
+func NewStreamSegments(mediaConfigure configure.MediaConfigure, basePath string) *StreamSegments {
 	return &StreamSegments{
+		mediaConfigure: mediaConfigure,
 		streamBasePath: basePath,
-		segmentRange:   segmentRange,
 		currentSegment: nil,
 		segments:       make([]*Segment, 0),
 		idCounter:      0,
+		wrapper:        ffmpeg.NewFFmpegWrapper(mediaConfigure, basePath),
 	}
 }
 
@@ -61,6 +65,12 @@ func (s *StreamSegments) Open() error {
 			return err
 		}
 	}
+
+	if err := s.wrapper.Open(); err != nil {
+		return err
+	}
+
+	s.wrapper.Run()
 	return nil
 }
 
@@ -68,28 +78,33 @@ func (s *StreamSegments) Close() {
 	if s.currentSegment != nil {
 		s.currentSegment.close()
 	}
+
+	s.wrapper.Stop()
 }
 
 func (s *StreamSegments) WriteVideo(data []byte, timeestamp media.Timestamp, isIDRFraem bool) error {
-	if s.needNewSegment(isIDRFraem) {
-		segment, err := s.createSegment()
-		if err != nil {
-			return err
-		}
+	// if s.needNewSegment(isIDRFraem) {
+	// 	segment, err := s.createSegment()
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		if s.currentSegment != nil {
-			s.currentSegment.close()
-			s.segments = append(s.segments, s.currentSegment)
-		}
+	// 	if s.currentSegment != nil {
+	// 		s.currentSegment.close()
+	// 		s.segments = append(s.segments, s.currentSegment)
+	// 	}
 
-		s.currentSegment = segment
-	}
+	// 	s.currentSegment = segment
+	// }
 
-	return s.currentSegment.write(data, timeestamp)
+	// return s.currentSegment.write(data, timeestamp)
+
+	return s.wrapper.Input(data)
 }
 
 func (s *StreamSegments) WriteAudio(data []byte, timeestamp media.Timestamp) error {
-	return s.currentSegment.write(data, timeestamp)
+	// return s.currentSegment.write(data, timeestamp)
+	return s.wrapper.Input(data)
 }
 
 func (s *StreamSegments) needNewSegment(isIDRFraem bool) bool {

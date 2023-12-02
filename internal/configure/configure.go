@@ -46,8 +46,16 @@ type ServerConfigure struct {
 	RequestTimeout         int                 `yaml:"requestTimeout"`
 }
 
+type MediaEncodingConfigure struct {
+	Resolution  string `yaml:"resolution"`
+	Frame       int    `yaml:"frame"`
+	Keyint      int    `yaml:"keyint"`
+	SegmentTime int    `yaml:"segmentTime"`
+}
+
 type MediaConfigure struct {
-	Reserve string `yaml:"reserve"`
+	Reserve  string                   `yaml:"reserve"`
+	Encoding []MediaEncodingConfigure `yaml:"encoding"`
 }
 
 type SegmentConfigure struct {

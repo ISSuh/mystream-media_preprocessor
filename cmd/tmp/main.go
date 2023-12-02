@@ -1,24 +1,53 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io"
+	"log"
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/yapingcat/gomedia/go-codec"
 	"github.com/yapingcat/gomedia/go-mpeg2"
 	"github.com/yapingcat/gomedia/go-rtmp"
+
+	ffmpeg "github.com/u2takey/ffmpeg-go"
+)
+
+const (
+	Command = "ffmpeg " +
+		"-i pipe:0 " +
+		"-c:v libx264 -x264opts keyint=120:no-scenecut -s 1920x1080 -r 60 -profile:v main -preset veryfast -c:a aac -sws_flags bilinear -f segment -segment_time 2 ./temp/1080_60/out_1080_60_%03d.ts " +
+		"-c:v libx264 -x264opts keyint=120:no-scenecut -s 1280x720 -r 60 -profile:v main -preset veryfast -c:a aac -sws_flags bilinear -f segment -segment_time 2 ./temp/720_60/out_720_60_%03d.ts " +
+		"-c:v libx264 -x264opts keyint=60:no-scenecut -s 1280x720 -r 30  -profile:v main -preset veryfast -c:a aac -sws_flags bilinear -f segment -segment_time 2 ./temp/720_30/out_720_30_%03d.ts " +
+		"-c:v libx264 -x264opts keyint=60:no-scenecut -s 852x480 -r 30  -profile:v main -preset veryfast -c:a aac -sws_flags bilinear  -f segment -segment_time 2 ./temp/480_30/out_480_30_%03d.ts "
+
+	// Command = "ffmpeg -loglevel verbose -i pipe:0 -c:v libx264 -x264opts keyint=120:no-scenecut -s 1920x1080 -r 60 -profile:v main -preset veryfast -c:a aac -sws_flags bilinear -f segment -segment_time 2 ./temp/1080_60/out_1080_60_%03d.ts"
 )
 
 var port = flag.String("port", "1935", "rtmp server listen port")
 
 type MediaCenter map[string]*MediaProducer
 
+var cmd *exec.Cmd
+var stdin io.WriteCloser
+var stdout io.ReadCloser
+
 var center MediaCenter
 var mtx sync.Mutex
+
+var outlogbuffer bytes.Buffer
+
+var testInputBuffer *bytes.Buffer
+var testout *ffmpeg.Stream
+
+var running bool
 
 func init() {
 	center = make(map[string]*MediaProducer)
@@ -90,15 +119,32 @@ func newMediaProducer(name string, sess *MediaSession) *MediaProducer {
 
 	mediaProducer.muxer.OnPacket = func(pkg []byte) {
 		// mpeg.ShowPacketHexdump(pkg)
-		_, err := mediaProducer.tsfile.Write(pkg)
-		if err != nil {
-			fmt.Println("write packet -- err : ", err)
-		}
+		// _, err := mediaProducer.tsfile.Write(pkg)
+		// if err != nil {
+		// 	fmt.Println("write packet -- err : ", err)
+		// }
 
-		// fmt.Println("write packet -- ", len(pkg), " / ", n)
+		// fmt.Println("write packet -- ", len(pkg))
 
 		// os.Stdin.Read(make([]byte, 1))
-		mediaProducer.tsfile.Sync()
+		// // mediaProducer.tsfile.Sync()
+
+		// testInputBuffer = bytes.NewBuffer([]byte{0x01})
+		// if !running {
+		// 	err := testout.WithInput(testInputBuffer).Run()
+		// 	if err != nil {
+		// 		fmt.Println("ffmpeg run err : ", err.Error())
+		// 		log.Panic(err)
+		// 	}
+		// 	running = true
+		// }
+
+		rtmpStreamData := pkg
+		if _, err := io.WriteString(stdin, string(rtmpStreamData)); err != nil {
+			fmt.Println("Error writing to stdin:", err)
+			log.Panic("Error writing to stdin:", err)
+		}
+
 	}
 
 	mediaProducer.vpid = mediaProducer.muxer.AddStream(mpeg2.TS_STREAM_H264)
@@ -140,7 +186,7 @@ func (producer *MediaProducer) dispatch() {
 	for {
 		select {
 		case frame := <-producer.session.C:
-			fmt.Println("media frame ", codec.CodecString(frame.cid))
+			// fmt.Println("media frame ", codec.CodecString(frame.cid))
 			if frame == nil {
 				continue
 			}
@@ -153,11 +199,31 @@ func (producer *MediaProducer) dispatch() {
 						frame.dts += 40
 						fmt.Println(frame.dts)
 					}
+
+					// write
+
 					// fmt.Println(producer.muxer.Write(producer.vpid, nalu, uint64(frame.pts), uint64(frame.dts)))
 					producer.muxer.Write(producer.vpid, nalu, uint64(frame.pts), uint64(frame.dts))
+
+					// testInputBuffer.WriteString(string(frame.frame[:]))
+					// if !running {
+					// 	err := testout.WithInput(testInputBuffer).Run()
+					// 	if err != nil {
+					// 		fmt.Println("ffmpeg run err : ", err.Error())
+					// 		log.Panic(err)
+					// 	}
+					// 	running = true
+					// }
+
 					return true
 				})
 			}
+
+			// rtmpStreamData := frame.frame
+			// if _, err := io.WriteString(stdin, string(rtmpStreamData)); err != nil {
+			// 	fmt.Println("Error writing to stdin:", err)
+			// 	log.Panic("Error writing to stdin:", err)
+			// }
 
 			producer.mtx.Lock()
 			tmp := make([]*MediaSession, len(producer.consumers))
@@ -295,6 +361,8 @@ func (sess *MediaSession) start() {
 func (sess *MediaSession) stop() {
 	fmt.Println("MediaSession.stop")
 
+	cmd.Process.Kill()
+
 	sess.die.Do(func() {
 		close(sess.quit)
 		if sess.source != nil {
@@ -366,8 +434,60 @@ func startRtmpServer() {
 	}
 }
 
+func populateStdin(buffer []byte) func(io.WriteCloser) {
+	return func(stdin io.WriteCloser) {
+		defer stdin.Close()
+		io.Copy(stdin, bytes.NewReader(buffer))
+	}
+}
+
 func main() {
-	flag.Parse()
+	args := strings.Fields(Command)
+	exec.Command(args[0], args[1:]...)
+	cmd = exec.Command(args[0], args[1:]...)
+
+	var err error
+	stdin, err = cmd.StdinPipe()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	// cmd.Stdout = &outlogbuffer
+	// stdout, err = cmd.StdoutPipe()
+	// if err != nil {
+	// 	log.Panic(err)
+	// }
+
+	err = cmd.Start()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	go func() {
+		beforLen := 0
+		for {
+			if beforLen != outlogbuffer.Len() {
+				fmt.Print(outlogbuffer.String())
+				beforLen = outlogbuffer.Len()
+			}
+		}
+	}()
+
+	// testInputBuffer = bytes.NewBuffer(nil)
+	// testout = ffmpeg.Input("pipe:").
+	// 	Output("file%d.ts", ffmpeg.KwArgs{
+	// 		"c:v": "libx264", "preset": "veryfast", "x264opts": "keyint=120:no-scenecut",
+	// 		"s": "1920x1080", "r": "60", "profile:v": "main",
+	// 		"c:a": "aac", "sws_flags": "bilinear",
+	// 		"f": "segment", "segment_time": "2", "hls_segment_filename": "file%d.ts"}).
+	// 	OverWriteOutput().ErrorToStdOut()
+
+	// err := testout.WithInput(testInputBuffer).Run()
+	// if err != nil {
+	// 	fmt.Println("ffmpeg run err : ", err.Error())
+	// 	log.Panic(err)
+	// }
+
 	go startRtmpServer()
 	select {}
 }
