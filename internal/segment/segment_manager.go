@@ -36,7 +36,7 @@ type SegmentManager struct {
 	streams          map[int]*StreamSegments
 }
 
-func NewSessionManager(segmentConfigure configure.SegmentConfigure, mediaConfigure configure.MediaConfigure) *SegmentManager {
+func NewSegmentManager(segmentConfigure configure.SegmentConfigure, mediaConfigure configure.MediaConfigure) *SegmentManager {
 	return &SegmentManager{
 		segmentConfigure: segmentConfigure,
 		mediaConfigure:   mediaConfigure,

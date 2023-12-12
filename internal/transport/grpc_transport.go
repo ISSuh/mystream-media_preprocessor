@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2023 ISSuh
+# Copyright (c) 2023 ISSuh
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,8 +24,26 @@ SOFTWARE.
 
 package transport
 
-type Transport interface {
-	Read() (interface{}, error)
-	Write(data interface{}) error
-	Close()
+import (
+	"errors"
+
+	"github.com/ISSuh/mystream-media_preprocessor/internal/message"
+)
+
+type GRpcTransport struct {
+	stream message.MediaFrame_SendFrameClient
+}
+
+func (t *GRpcTransport) Read() (interface{}, error) {
+	return nil, errors.New("not suppoerted")
+}
+
+func (t *GRpcTransport) Write(data interface{}) error {
+	msg := data.(*message.Frame)
+	err := t.stream.Send(msg)
+	return err
+}
+
+func (t *GRpcTransport) Close() {
+	t.stream.CloseAndRecv()
 }

@@ -54,9 +54,12 @@ type SessionManager struct {
 	sessions  map[int]*Session
 	rand      *rand.Rand
 
+	rpcFactory *transport.RpcClientFactory
 	httpClient *http.Client
 
 	segmentManager *segment.SegmentManager
+
+	sessionIdCounter int
 }
 
 func NewSessionManager(configure *configure.Configure) *SessionManager {
@@ -64,11 +67,13 @@ func NewSessionManager(configure *configure.Configure) *SessionManager {
 	rand := rand.New(seed)
 
 	sessionManager := &SessionManager{
-		configure:      configure,
-		sessions:       make(map[int]*Session),
-		rand:           rand,
-		httpClient:     nil,
-		segmentManager: segment.NewSessionManager(configure.Segment, configure.Media),
+		configure:        configure,
+		sessions:         make(map[int]*Session),
+		rand:             rand,
+		rpcFactory:       transport.NewGRpcTransportFactory(configure.Server.MediaProcessor.Address),
+		httpClient:       nil,
+		segmentManager:   segment.NewSegmentManager(configure.Segment, configure.Media),
+		sessionIdCounter: 0,
 	}
 
 	sessionManager.httpClient = &http.Client{
@@ -84,8 +89,8 @@ func (sm *SessionManager) dialTimeout(network, addr string) (net.Conn, error) {
 	return net.DialTimeout(network, addr, time.Duration(sm.configure.Server.RequestTimeout)*time.Millisecond)
 }
 
-func (sm *SessionManager) CreateNewSession(transporter transport.Transport) *Session {
-	return NewSession(sm, transporter)
+func (sm *SessionManager) CreateNewSession(socketTransporter transport.Transport) *Session {
+	return NewSession(sm, socketTransporter, sm.rpcFactory.CreateGRpcTransport())
 }
 
 func (sm *SessionManager) TerminateAllSession() {
@@ -97,30 +102,34 @@ func (sm *SessionManager) TerminateAllSession() {
 
 func (sm *SessionManager) checkValidStream(session *Session, appName, streamKey string) error {
 	log.Info("[SessionManager][checkValidStream]")
-	streamStatus, err := sm.requestValidateStreamKey(streamKey)
-	if err != nil {
-		return err
-	}
+	// streamStatus, err := sm.requestValidateStreamKey(streamKey)
+	// if err != nil {
+	// 	return err
+	// }
 
-	if !streamStatus.Active || (len(streamStatus.Url) == 0) {
-		return errors.New("invalide stream status")
-	}
+	// if !streamStatus.Active || (len(streamStatus.Url) == 0) {
+	// 	return errors.New("invalide stream status")
+	// }
 
-	if _, exist := sm.sessions[streamStatus.StreamId]; exist {
-		return errors.New("alread exist session")
-	}
+	// if _, exist := sm.sessions[streamStatus.StreamId]; exist {
+	// 	return errors.New("alread exist session")
+	// }
 
-	streamId := streamStatus.StreamId
-	streamUrl := streamStatus.Url
+	// streamId := streamStatus.StreamId
+	// streamUrl := streamStatus.Url
+
+	sm.sessionIdCounter++
+	streamId := sm.sessionIdCounter
+	// streamUrl := streamStatus.Url
 
 	sm.addSession(streamId, session)
 
-	streamSegments, err := sm.segmentManager.OpenStreamSegments(streamId, streamUrl)
-	if err != nil {
-		return err
-	}
+	// streamSegments, err := sm.segmentManager.OpenStreamSegments(streamId, streamUrl)
+	// if err != nil {
+	// 	return err
+	// }
 
-	session.registStreamSegment(streamSegments)
+	// session.registStreamSegment(streamSegments)
 	return nil
 }
 

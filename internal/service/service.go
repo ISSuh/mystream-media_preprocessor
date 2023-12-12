@@ -57,9 +57,9 @@ func NewService(configure *configure.Configure) *Service {
 func (s *Service) Run() error {
 	log.Info("[Service][Run] service running")
 
-	if err := s.updateBroadcastServiceAddress(); err != nil {
-		return err
-	}
+	// if err := s.updateBroadcastServiceAddress(); err != nil {
+	// 	return err
+	// }
 
 	address := NETWORK_DEFAULT_IP + ":" + s.configure.Server.RtmpPort
 	listen, err := net.Listen(NETWORK_TCP_V4, address)

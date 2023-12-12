@@ -1,0 +1,4 @@
+#!/bin/bash
+
+PATH="${PATH}:${HOME}/go/bin" protoc --go_out=. message.proto 
+PATH="${PATH}:${HOME}/go/bin" protoc --go_out=.  --go-grpc_out=.  message.proto

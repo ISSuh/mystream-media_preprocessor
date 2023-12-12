@@ -19,3 +19,7 @@
 
 ffmpeg -loglevel verbose -listen 1 -i rtmp://localhost:1935/test -f flv -c copy \
   -c:v libx264 -x264opts keyint=60:no-scenecut -s 852x480 -r 30  -profile:v main -preset veryfast -c:a aac -sws_flags bilinear  -f segment -segment_time 2 "./temp/1/202312021430/852x480_30/%06d.ts"
+
+
+ffmpeg -loglevel verbose -listen 1 -i rtmp://localhost:1935/test -f flv -c copy \
+  -c:v libx264 -x264opts keyint=60:no-scenecut -s 852x480 -r 30  -profile:v main -preset veryfast -c:a aac -sws_flags bilinear  -f segment -segment_time 2 "./out_%06d.ts"

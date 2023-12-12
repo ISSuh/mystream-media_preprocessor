@@ -31,6 +31,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/ISSuh/mystream-media_preprocessor/internal/media"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/message"
 	"github.com/ISSuh/mystream-media_preprocessor/internal/protocol"
 	"github.com/ISSuh/mystream-media_preprocessor/internal/segment"
 	"github.com/ISSuh/mystream-media_preprocessor/internal/transport"
@@ -40,9 +41,10 @@ type Session struct {
 	sessionId int
 	streamKey string
 
-	sessionHandler SessionHandler
-	transporter    transport.Transport
-	context        *protocol.RtmpContext
+	sessionHandler    SessionHandler
+	socketTransporter transport.Transport
+	rpcTransporter    transport.Transport
+	context           *protocol.RtmpContext
 
 	stopSignal  chan struct{}
 	stopRunning sync.Once
@@ -51,19 +53,20 @@ type Session struct {
 	streamSegmgment *segment.StreamSegments
 }
 
-func NewSession(sessionHandler SessionHandler, transporter transport.Transport) *Session {
+func NewSession(sessionHandler SessionHandler, socketTransporter, rpcTransporter transport.Transport) *Session {
 	session := &Session{
-		sessionId:       -1,
-		streamKey:       "",
-		sessionHandler:  sessionHandler,
-		transporter:     transporter,
-		context:         protocol.NewRtmpContext(),
-		stopSignal:      make(chan struct{}),
-		muxer:           media.NewTSMuxer(),
-		streamSegmgment: nil,
+		sessionId:         -1,
+		streamKey:         "",
+		sessionHandler:    sessionHandler,
+		socketTransporter: socketTransporter,
+		rpcTransporter:    rpcTransporter,
+		context:           protocol.NewRtmpContext(),
+		stopSignal:        make(chan struct{}),
+		muxer:             media.NewTSMuxer(),
+		streamSegmgment:   nil,
 	}
 
-	session.context.RegistHandler(session, transporter)
+	session.context.RegistHandler(session, socketTransporter)
 	return session
 }
 
@@ -97,12 +100,12 @@ func (s *Session) registStreamSegment(streamSegmgment *segment.StreamSegments) {
 }
 
 func (s *Session) passStream() error {
-	data, err := s.transporter.Read()
+	data, err := s.socketTransporter.Read()
 	if err != nil {
 		return err
 	}
 
-	err = s.context.InputStream(data)
+	err = s.context.InputStream(data.([]byte))
 	if err != nil {
 		return err
 	}
@@ -113,7 +116,8 @@ func (s *Session) stop() {
 	s.stopRunning.Do(
 		func() {
 			log.Info("[Session][run][", s.sessionId, "] stop session")
-			s.transporter.Close()
+			s.socketTransporter.Close()
+			s.rpcTransporter.Close()
 			close(s.stopSignal)
 		})
 }
@@ -140,32 +144,44 @@ func (s *Session) OnError() {
 func (s *Session) OnVideoFrame(frame *media.VideoFrame) {
 	log.Trace("[Session][OnVideoFrame][", s.sessionId, "]")
 
-	buffer, err := s.muxer.MuxingVideo(frame)
-	if err != nil {
-		log.Warn("[Session][OnVideoFrame][", s.sessionId, "] video muxing fail. ", err)
-		return
+	f := &message.Frame{
+		Type: message.Frame_VIDEO,
+		Timestamp: &message.Timestamp{
+			Pts: frame.Pts(),
+			Dts: frame.Dts(),
+		},
+		SessionId: int32(s.sessionId),
+		Buffer:    frame.Data(),
 	}
 
-	isIDRFraem := media.CheckIsIDRFrame(frame)
-	err = s.streamSegmgment.WriteVideo(buffer, frame.Timestamp(), isIDRFraem)
-	if err != nil {
-		log.Warn("[Session][OnVideoFrame][", s.sessionId, "] segment write fail. ", err)
-		return
-	}
+	s.rpcTransporter.Write(f)
+
+	// buffer, err := s.muxer.MuxingVideo(frame)
+	// if err != nil {
+	// 	log.Warn("[Session][OnVideoFrame][", s.sessionId, "] video muxing fail. ", err)
+	// 	return
+	// }
+
+	// isIDRFraem := media.CheckIsIDRFrame(frame)
+	// err = s.streamSegmgment.WriteVideo(buffer, frame.Timestamp(), isIDRFraem)
+	// if err != nil {
+	// 	log.Warn("[Session][OnVideoFrame][", s.sessionId, "] segment write fail. ", err)
+	// 	return
+	// }
 }
 
 func (s *Session) OnAudioFrame(frame *media.AudioFrame) {
 	log.Trace("[Session][OnAudioFrame][", s.sessionId, "]")
 
-	buffer, err := s.muxer.MuxingAudio(frame)
-	if err != nil {
-		log.Warn("[Session][OnAudioFrame][", s.sessionId, "] audio muxing fail. ", err)
-		return
-	}
+	// buffer, err := s.muxer.MuxingAudio(frame)
+	// if err != nil {
+	// 	log.Warn("[Session][OnAudioFrame][", s.sessionId, "] audio muxing fail. ", err)
+	// 	return
+	// }
 
-	err = s.streamSegmgment.WriteAudio(buffer, frame.Timestamp())
-	if err != nil {
-		log.Warn("[Session][OnAudioFrame][", s.sessionId, "] segment write fail. ", err)
-		return
-	}
+	// err = s.streamSegmgment.WriteAudio(buffer, frame.Timestamp())
+	// if err != nil {
+	// 	log.Warn("[Session][OnAudioFrame][", s.sessionId, "] segment write fail. ", err)
+	// 	return
+	// }
 }

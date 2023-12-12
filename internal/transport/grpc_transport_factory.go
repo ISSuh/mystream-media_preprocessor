@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2023 ISSuh
+# Copyright (c) 2023 ISSuh
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,11 +21,47 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-
 package transport
 
-type Transport interface {
-	Read() (interface{}, error)
-	Write(data interface{}) error
-	Close()
+import (
+	"context"
+	"fmt"
+
+	"github.com/ISSuh/mystream-media_preprocessor/internal/message"
+	"google.golang.org/grpc"
+)
+
+type RpcClientFactory struct {
+	connection *grpc.ClientConn
+	client     message.MediaFrameClient
+}
+
+func NewGRpcTransportFactory(address string) *RpcClientFactory {
+	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		fmt.Println(err.Error())
+		return nil
+	}
+
+	c := message.NewMediaFrameClient(conn)
+
+	return &RpcClientFactory{
+		connection: conn,
+		client:     c,
+	}
+}
+
+func (g *RpcClientFactory) CreateGRpcTransport() Transport {
+	stream, err := g.client.SendFrame(context.Background())
+	if err != nil {
+		return nil
+	}
+
+	return &GRpcTransport{
+		stream: stream,
+	}
+}
+
+func (g *RpcClientFactory) CloseConnection() {
+	g.connection.Close()
 }

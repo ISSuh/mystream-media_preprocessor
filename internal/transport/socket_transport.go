@@ -40,7 +40,7 @@ func NewSocketTransport(conn net.Conn, packetSize int) Transport {
 	}
 }
 
-func (t *SocketTransport) Read() ([]byte, error) {
+func (t *SocketTransport) Read() (interface{}, error) {
 	data := make([]byte, t.packetSize)
 	n, err := t.conn.Read(data)
 	if err != nil {
@@ -49,8 +49,8 @@ func (t *SocketTransport) Read() ([]byte, error) {
 	return data[:n], nil
 }
 
-func (t *SocketTransport) Write(data []byte) error {
-	_, err := t.conn.Write(data)
+func (t *SocketTransport) Write(data interface{}) error {
+	_, err := t.conn.Write(data.([]byte))
 	return err
 }
 

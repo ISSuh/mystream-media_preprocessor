@@ -2,6 +2,10 @@ server:
   # base RTMP stream port
   rtmpPort: 1935
 
+  # rpc config on media processor external service
+  mediaProcessor:
+    address: localhost:50051
+
   discovery:
     # discovey server URL
     serverUrls:
@@ -17,7 +21,7 @@ server:
 
     # retry count
     retry: 3
-
+  
   # tcp socket packet buffer size
   packetSize: 65536
 

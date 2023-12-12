@@ -31,6 +31,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type MediaProcessorConfigure struct {
+	Address string `yaml:"address"`
+}
+
 type DiscorveryConfigure struct {
 	ServerUrls        []string `yaml:"serverUrls"`
 	ConnectionTimeout int      `yaml:"connectTimeout"`
@@ -39,11 +43,12 @@ type DiscorveryConfigure struct {
 }
 
 type ServerConfigure struct {
-	RtmpPort               string              `yaml:"rtmpPort"`
-	Discovery              DiscorveryConfigure `yaml:"discovery"`
-	BroadcastServerAddress string              `yaml:"broadcastServerAddress"`
-	PacketSize             int                 `yaml:"packetSize"`
-	RequestTimeout         int                 `yaml:"requestTimeout"`
+	RtmpPort               string                  `yaml:"rtmpPort"`
+	MediaProcessor         MediaProcessorConfigure `yaml:"mediaProcessor"`
+	Discovery              DiscorveryConfigure     `yaml:"discovery"`
+	BroadcastServerAddress string                  `yaml:"broadcastServerAddress"`
+	PacketSize             int                     `yaml:"packetSize"`
+	RequestTimeout         int                     `yaml:"requestTimeout"`
 }
 
 type MediaEncodingConfigure struct {
