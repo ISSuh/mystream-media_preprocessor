@@ -28,21 +28,21 @@ import (
 	"io"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/ISSuh/mystream-media_preprocessor/internal/media"
-	"github.com/ISSuh/mystream-media_preprocessor/internal/protocol"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/rtmp"
 	"github.com/ISSuh/mystream-media_preprocessor/internal/segment"
 	"github.com/ISSuh/mystream-media_preprocessor/internal/transport"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Session struct {
 	sessionId int
 	streamKey string
 
-	sessionHandler SessionHandler
-	transporter    transport.Transport
-	context        *protocol.RtmpContext
+	sessionHandler Handler
+	transporter    transport.Transporter
+	context        *rtmp.Context
 
 	stopSignal  chan struct{}
 	stopRunning sync.Once
@@ -51,13 +51,13 @@ type Session struct {
 	streamSegmgment *segment.StreamSegments
 }
 
-func NewSession(sessionHandler SessionHandler, transporter transport.Transport) *Session {
+func NewSession(sessionHandler Handler, transporter transport.Transporter) *Session {
 	session := &Session{
 		sessionId:       -1,
 		streamKey:       "",
 		sessionHandler:  sessionHandler,
 		transporter:     transporter,
-		context:         protocol.NewRtmpContext(),
+		context:         rtmp.NewContext(),
 		stopSignal:      make(chan struct{}),
 		muxer:           media.NewTSMuxer(),
 		streamSegmgment: nil,

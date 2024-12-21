@@ -22,10 +22,40 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package transport
+package rtmp
 
-type Transport interface {
-	Read() ([]byte, error)
-	Write(data []byte) error
-	Close()
+import (
+	"github.com/ISSuh/mystream-media_preprocessor/internal/transport"
+	"github.com/yapingcat/gomedia/go-rtmp"
+)
+
+type ClientOptions struct {
+	Host      string
+	AppName   string
+	StreamKey string
+	ChunkSize int
+}
+
+type Client struct {
+	transporter transport.Transporter
+
+	engine *rtmp.RtmpClient
+}
+
+func NewClientWithOpen(option ClientOptions, transporter transport.Transporter) (*Client, error) {
+	rtmpOptions := []func(*rtmp.RtmpClient){
+	if option.ChunkSize != 0 {
+		rtmpOptions = append(rtmpOptions, rtmp.WithChunkSize(uint32(option.ChunkSize)))
+	}
+
+	engine := rtmp.NewRtmpClient(rtmpOptions...)
+	engine.SetOutput(transporter.Write)
+
+	url := "rtmp://" + option.Host + "/" + option.AppName + "/" + option.StreamKey
+	engine.Start(url)
+
+	return &Client{
+		transporter: transporter,
+		engine:      engine,
+	}, nil
 }

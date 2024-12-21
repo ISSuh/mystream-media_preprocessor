@@ -42,14 +42,14 @@ const (
 
 type Service struct {
 	configure        *configure.Configure
-	sessionManager   *session.SessionManager
+	sessionManager   *session.Manager
 	discorveryClient *discovery.DiscorveryClient
 }
 
 func NewService(configure *configure.Configure) *Service {
 	return &Service{
 		configure:        configure,
-		sessionManager:   session.NewSessionManager(configure),
+		sessionManager:   session.NewManager(configure),
 		discorveryClient: discovery.NewDiscorveryClient(&configure.Server.Discovery),
 	}
 }
@@ -74,7 +74,7 @@ func (s *Service) Run() error {
 			continue
 		}
 
-		socketTransport := transport.NewSocketTransport(connection, s.configure.Server.PacketSize)
+		socketTransport := transport.NewSocketTransporter(connection, s.configure.Server.PacketSize)
 		session := s.sessionManager.CreateNewSession(socketTransport)
 		go session.Run()
 	}

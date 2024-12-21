@@ -22,82 +22,82 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package protocol
+package rtmp
 
 import (
 	"github.com/ISSuh/mystream-media_preprocessor/internal/media"
 	"github.com/ISSuh/mystream-media_preprocessor/internal/transport"
 	log "github.com/sirupsen/logrus"
 
-	rtmpCodec "github.com/yapingcat/gomedia/go-codec"
-	rtmp "github.com/yapingcat/gomedia/go-rtmp"
+	"github.com/yapingcat/gomedia/go-codec"
+	"github.com/yapingcat/gomedia/go-rtmp"
 )
 
-type RtmpContext struct {
-	handler     RtmpHandler
-	transporter transport.Transport
+type Context struct {
+	handler     ServerHandler
+	transporter transport.Transporter
 
 	internalHandler *rtmp.RtmpServerHandle
 }
 
-func NewRtmpContext() *RtmpContext {
-	return &RtmpContext{
+func NewContext() *Context {
+	return &Context{
 		handler:         nil,
 		transporter:     nil,
 		internalHandler: rtmp.NewRtmpServerHandle(),
 	}
 }
 
-func (context *RtmpContext) RegistHandler(handler RtmpHandler, transporter transport.Transport) {
-	context.handler = handler
-	context.transporter = transporter
+func (c *Context) RegistHandler(handler ServerHandler, transporter transport.Transporter) {
+	c.handler = handler
+	c.transporter = transporter
 
-	context.internalHandler.SetOutput(
+	c.internalHandler.SetOutput(
 		func(data []byte) error {
-			return context.transporter.Write(data)
+			return c.transporter.Write(data)
 		})
 
-	context.internalHandler.OnPlay(
+	c.internalHandler.OnPlay(
 		func(_, _ string, _, _ float64, _ bool) rtmp.StatusCode {
 			log.Warn("[RtmpContext][OnPlay] not support")
 			return rtmp.NETSTREAM_CONNECT_REJECTED
 		})
 
-	context.internalHandler.OnPublish(
+	c.internalHandler.OnPublish(
 		func(appName, streamPath string) rtmp.StatusCode {
-			err := context.handler.OnPrePare(appName, streamPath)
+			err := c.handler.OnPrePare(appName, streamPath)
 			if err != nil {
 				return rtmp.NETCONNECT_CONNECT_REJECTED
 			}
 			return rtmp.NETSTREAM_PUBLISH_START
 		})
 
-	context.internalHandler.OnStateChange(
+	c.internalHandler.OnStateChange(
 		func(newState rtmp.RtmpState) {
 			switch newState {
 			case rtmp.STATE_RTMP_PUBLISH_START:
-				context.handler.OnPublish()
+				c.handler.OnPublish()
 			case rtmp.STATE_RTMP_PUBLISH_FAILED:
-				context.handler.OnError()
+				c.handler.OnError()
 			}
 		})
 
-	context.internalHandler.OnFrame(
-		func(cid rtmpCodec.CodecID, pts, dts uint32, frame []byte) {
+	c.internalHandler.OnFrame(
+		func(cid codec.CodecID, pts, dts uint32, frame []byte) {
 			mediaType, codec := media.ConvertCodec(cid)
 			timestamp := media.Timestamp{Pts: uint64(pts), Dts: uint64(dts)}
 
 			switch mediaType {
 			case media.MEDIA_VIDEO:
-				context.handler.OnVideoFrame(
+				c.handler.OnVideoFrame(
 					media.NewVideoFrame(media.VideoCodec(codec), timestamp, frame, false))
 			case media.MEDIA_AUDIO:
-				context.handler.OnAudioFrame(
+				c.handler.OnAudioFrame(
 					media.NewAudioFrame(media.AudioCodec(codec), timestamp, frame))
 			}
 		})
 }
 
-func (contex *RtmpContext) InputStream(data []byte) error {
-	return contex.internalHandler.Input(data)
+func (c *Context) InputStream(data []byte) error {
+	return c.internalHandler.Input(data)
 }

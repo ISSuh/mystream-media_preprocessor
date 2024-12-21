@@ -49,7 +49,7 @@ const (
 	StreamDeactiveUrlPath = StreamUrlPathPrefix + "deactive"
 )
 
-type SessionManager struct {
+type Manager struct {
 	configure *configure.Configure
 	sessions  map[int]*Session
 	rand      *rand.Rand
@@ -59,11 +59,11 @@ type SessionManager struct {
 	segmentManager *segment.SegmentManager
 }
 
-func NewSessionManager(configure *configure.Configure) *SessionManager {
+func NewManager(configure *configure.Configure) *Manager {
 	seed := rand.NewSource(time.Now().UnixNano())
 	rand := rand.New(seed)
 
-	sessionManager := &SessionManager{
+	Manager := &Manager{
 		configure:      configure,
 		sessions:       make(map[int]*Session),
 		rand:           rand,
@@ -71,32 +71,32 @@ func NewSessionManager(configure *configure.Configure) *SessionManager {
 		segmentManager: segment.NewSessionManager(configure.Segment, configure.Media),
 	}
 
-	sessionManager.httpClient = &http.Client{
+	Manager.httpClient = &http.Client{
 		Transport: &http.Transport{
-			Dial: sessionManager.dialTimeout,
+			Dial: Manager.dialTimeout,
 		},
 	}
 
-	return sessionManager
+	return Manager
 }
 
-func (sm *SessionManager) dialTimeout(network, addr string) (net.Conn, error) {
+func (sm *Manager) dialTimeout(network, addr string) (net.Conn, error) {
 	return net.DialTimeout(network, addr, time.Duration(sm.configure.Server.RequestTimeout)*time.Millisecond)
 }
 
-func (sm *SessionManager) CreateNewSession(transporter transport.Transport) *Session {
+func (sm *Manager) CreateNewSession(transporter transport.Transporter) *Session {
 	return NewSession(sm, transporter)
 }
 
-func (sm *SessionManager) TerminateAllSession() {
+func (sm *Manager) TerminateAllSession() {
 	for sessionId, session := range sm.sessions {
 		session.stop()
 		delete(sm.sessions, sessionId)
 	}
 }
 
-func (sm *SessionManager) checkValidStream(session *Session, appName, streamKey string) error {
-	log.Info("[SessionManager][checkValidStream]")
+func (sm *Manager) checkValidStream(session *Session, appName, streamKey string) error {
+	log.Info("[Manager][checkValidStream]")
 	streamStatus, err := sm.requestValidateStreamKey(streamKey)
 	if err != nil {
 		return err
@@ -124,13 +124,13 @@ func (sm *SessionManager) checkValidStream(session *Session, appName, streamKey 
 	return nil
 }
 
-func (sm *SessionManager) streamStart(session *Session) error {
-	log.Info("[SessionManager][streamStart]")
+func (sm *Manager) streamStart(session *Session) error {
+	log.Info("[Manager][streamStart]")
 	return nil
 }
 
-func (sm *SessionManager) streamEnd(session *Session) {
-	log.Info("[SessionManager][streamEnd]")
+func (sm *Manager) streamEnd(session *Session) {
+	log.Info("[Manager][streamEnd]")
 	streamDeactive := dto.NewStreamActive(session.streamKey)
 	sm.requestStreamStatus(streamDeactive, false)
 
@@ -138,8 +138,8 @@ func (sm *SessionManager) streamEnd(session *Session) {
 	sm.stopSession(session)
 }
 
-func (sm *SessionManager) streamError(session *Session) {
-	log.Info("[SessionManager][streamError]")
+func (sm *Manager) streamError(session *Session) {
+	log.Info("[Manager][streamError]")
 	streamDeactive := dto.NewStreamActive(session.streamKey)
 	sm.requestStreamStatus(streamDeactive, false)
 
@@ -147,7 +147,7 @@ func (sm *SessionManager) streamError(session *Session) {
 	sm.stopSession(session)
 }
 
-func (sm *SessionManager) stopSession(session *Session) {
+func (sm *Manager) stopSession(session *Session) {
 	_, exist := sm.sessions[session.sessionId]
 	if exist {
 		delete(sm.sessions, session.sessionId)
@@ -156,13 +156,13 @@ func (sm *SessionManager) stopSession(session *Session) {
 	session.stop()
 }
 
-func (sm *SessionManager) addSession(streamId int, session *Session) {
+func (sm *Manager) addSession(streamId int, session *Session) {
 	sm.sessions[streamId] = session
 	session.setSessionId(streamId)
 }
 
 // request about streamKey is validated to mystream-broadcast service
-func (sm *SessionManager) requestValidateStreamKey(streamKey string) (*dto.StreamStatus, error) {
+func (sm *Manager) requestValidateStreamKey(streamKey string) (*dto.StreamStatus, error) {
 	streamActive := dto.NewStreamActive(streamKey)
 	response, err := sm.requestStreamStatus(streamActive, true)
 	if err != nil {
@@ -170,17 +170,17 @@ func (sm *SessionManager) requestValidateStreamKey(streamKey string) (*dto.Strea
 	}
 
 	if !response.Success {
-		log.Error("[SessionManager][requestValidateStreamKey] validate fail from broadcast service. ", response.Error.Message)
+		log.Error("[Manager][requestValidateStreamKey] validate fail from broadcast service. ", response.Error.Message)
 		return nil, errors.New("validate fail from broadcast service. " + response.Error.Message)
 	}
 
 	return &response.Result, nil
 }
 
-func (sm *SessionManager) requestStreamStatus(streamActive dto.StreamActive, active bool) (*dto.ApiResponse, error) {
+func (sm *Manager) requestStreamStatus(streamActive dto.StreamActive, active bool) (*dto.ApiResponse, error) {
 	jsonStr, err := json.Marshal(streamActive)
 	if err != nil {
-		log.Error("[SessionManager][requestStreamStatus] cat not convert StreamActive to json. ", err)
+		log.Error("[Manager][requestStreamStatus] cat not convert StreamActive to json. ", err)
 		return nil, err
 	}
 
@@ -197,33 +197,33 @@ func (sm *SessionManager) requestStreamStatus(streamActive dto.StreamActive, act
 	apiResponse := &dto.ApiResponse{}
 	err = json.Unmarshal(response, apiResponse)
 	if err != nil {
-		log.Error("[SessionManager][requestStreamStatus] body parse error. ", err, " / ", string(response))
+		log.Error("[Manager][requestStreamStatus] body parse error. ", err, " / ", string(response))
 		return nil, err
 	}
 
-	log.Info("[SessionManager][requestStreamStatus] response : ", string(response))
+	log.Info("[Manager][requestStreamStatus] response : ", string(response))
 	return apiResponse, nil
 }
 
-func (sm *SessionManager) requestToBroadcastService(uri string, requestBody string) ([]byte, error) {
+func (sm *Manager) requestToBroadcastService(uri string, requestBody string) ([]byte, error) {
 	url := HttpScheme + sm.configure.Server.BroadcastServerAddress + uri
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer([]byte(requestBody)))
 	if err != nil {
-		log.Error("[SessionManager][requestToBroadcastService] cat not create http request. ", err)
+		log.Error("[Manager][requestToBroadcastService] cat not create http request. ", err)
 		return nil, err
 	}
 
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := sm.httpClient.Do(req)
 	if err != nil {
-		log.Error("[SessionManager][requestToBroadcastService] http response error. ", err)
+		log.Error("[Manager][requestToBroadcastService] http response error. ", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Error("[SessionManager][requestToBroadcastService] body parse error. ", err)
+		log.Error("[Manager][requestToBroadcastService] body parse error. ", err)
 		return nil, err
 	}
 	return bytes.Clone(body), nil

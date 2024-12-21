@@ -22,11 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package session
+package transport
 
-type SessionHandler interface {
-	checkValidStream(session *Session, appName, streamPath string) error
-	streamStart(session *Session) error
-	streamEnd(session *Session)
-	streamError(session *Session)
+type Transporter interface {
+	Read() ([]byte, error)
+	Write(data []byte) error
+	Close()
 }

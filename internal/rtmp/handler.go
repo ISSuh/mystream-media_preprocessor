@@ -22,38 +22,21 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-package transport
+package rtmp
 
 import (
-	"net"
+	"github.com/ISSuh/mystream-media_preprocessor/internal/media"
 )
 
-type SocketTransport struct {
-	conn       net.Conn
-	packetSize int
+type ClientHandler interface {
+	OnStateChange()
+	OnError()
 }
 
-func NewSocketTransport(conn net.Conn, packetSize int) Transport {
-	return &SocketTransport{
-		conn:       conn,
-		packetSize: packetSize,
-	}
-}
-
-func (t *SocketTransport) Read() ([]byte, error) {
-	data := make([]byte, t.packetSize)
-	n, err := t.conn.Read(data)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (t *SocketTransport) Write(data []byte) error {
-	_, err := t.conn.Write(data)
-	return err
-}
-
-func (t *SocketTransport) Close() {
-	t.conn.Close()
+type ServerHandler interface {
+	OnPrePare(appName, streamPath string) error
+	OnPublish()
+	OnError()
+	OnVideoFrame(frame *media.VideoFrame)
+	OnAudioFrame(frame *media.AudioFrame)
 }
